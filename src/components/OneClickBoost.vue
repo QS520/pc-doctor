@@ -7,8 +7,15 @@
       </div>
     </div>
 
+    <!-- 初始扫描提示 -->
+    <div class="scan-prompt" v-if="!hasLoaded && !boosting">
+      <Icon name="search" :size="32" />
+      <p>点击下方按钮开始扫描</p>
+      <button class="btn btn-primary" @click="runBoost">开始检测</button>
+    </div>
+
     <!-- 加速入口 -->
-    <div class="card boost-entry">
+    <div class="card boost-entry" v-if="hasLoaded || boosting">
       <div class="boost-entry-inner">
         <div class="boost-hero-icon">
           <Icon name="zap" :size="40" :stroke-width="1.5" />
@@ -136,11 +143,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
 
 const boosting = ref(false);
+const hasLoaded = ref(false);
 const result = ref(null);
 const error = ref("");
 const showConfirm = ref(false);
@@ -170,16 +178,28 @@ async function confirmBoost() {
     console.error("One click boost failed:", e);
   }
   boosting.value = false;
+  hasLoaded.value = true;
 }
-
-onMounted(() => {
-  // 进入页面时不自动执行，等待用户点击
-});
 </script>
 
 <style scoped>
 .one-click-boost {
   max-width: 1600px;
+}
+
+/* 初始扫描提示 */
+.scan-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 80px 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.scan-prompt p {
+  font-size: 13px;
+  margin: 0;
 }
 
 .header {

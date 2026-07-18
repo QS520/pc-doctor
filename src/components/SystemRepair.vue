@@ -96,6 +96,19 @@
       </div>
     </div>
 
+    <!-- 初始扫描提示 -->
+    <div class="scan-prompt" v-if="!hasLoaded && !loading">
+      <Icon name="search" :size="32" />
+      <p>点击下方按钮开始扫描</p>
+      <button class="btn btn-primary" @click="loadDiskHealth">检查磁盘健康</button>
+    </div>
+
+    <!-- 加载中 -->
+    <div v-if="loading" class="scan-prompt">
+      <div class="spinner" style="width:24px;height:24px"></div>
+      <p>正在检查磁盘健康...</p>
+    </div>
+
     <!-- 磁盘健康状态 -->
     <div class="card" v-if="diskHealth.length > 0">
       <div class="card-header">
@@ -144,11 +157,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
 
 const running = ref("");
+const loading = ref(false);
+const hasLoaded = ref(false);
 const sfcResult = ref(null);
 const dismResult = ref(null);
 const chkdskResult = ref(null);
@@ -195,19 +210,35 @@ async function runChkdsk() {
 }
 
 async function loadDiskHealth() {
+  loading.value = true;
   try {
     diskHealth.value = await invoke("check_disk_health");
   } catch (e) {
     console.error("Failed to check disk health:", e);
   }
+  loading.value = false;
+  hasLoaded.value = true;
 }
-
-onMounted(loadDiskHealth);
 </script>
 
 <style scoped>
 .system-repair {
   max-width: 1600px;
+}
+
+/* 初始扫描提示 */
+.scan-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 80px 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.scan-prompt p {
+  font-size: 13px;
+  margin: 0;
 }
 
 .header {

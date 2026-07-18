@@ -38,6 +38,13 @@
       <span class="filter-count">共 <span class="mono">{{ filteredServices.length }}</span> 项</span>
     </div>
 
+    <!-- 初始扫描提示 -->
+    <div class="scan-prompt" v-if="!hasLoaded && !loading">
+      <Icon name="search" :size="32" />
+      <p>点击下方按钮开始扫描</p>
+      <button class="btn btn-primary" @click="loadServices">加载服务列表</button>
+    </div>
+
     <!-- 加载中 -->
     <div v-if="loading" class="loading">
       <div class="spinner" style="width:20px;height:20px"></div>
@@ -45,7 +52,7 @@
     </div>
 
     <!-- 服务表格 -->
-    <div v-else class="card service-card">
+    <div v-else-if="hasLoaded" class="card service-card">
       <div class="service-table-wrapper">
         <table>
           <thead>
@@ -153,11 +160,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
 
 const loading = ref(true);
+const hasLoaded = ref(false);
 const services = ref([]);
 const categoryFilter = ref("全部");
 const searchKeyword = ref("");
@@ -190,6 +198,7 @@ async function loadServices() {
     feedback.value = { success: false, message: "加载服务列表失败: " + e };
   }
   loading.value = false;
+  hasLoaded.value = true;
 }
 
 async function disableService(svc) {
@@ -270,8 +279,6 @@ function categoryClass(category) {
   if (category.startsWith("第三方")) return "tag-info";
   return "tag-info";
 }
-
-onMounted(loadServices);
 </script>
 
 <style scoped>
@@ -368,6 +375,21 @@ onMounted(loadServices);
   padding: 80px 20px;
   color: var(--text-muted);
   font-size: 12px;
+}
+
+/* 初始扫描提示 */
+.scan-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 80px 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.scan-prompt p {
+  font-size: 13px;
+  margin: 0;
 }
 
 /* 服务表格 */

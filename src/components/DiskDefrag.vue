@@ -14,6 +14,13 @@
       </div>
     </div>
 
+    <!-- 初始扫描提示 -->
+    <div class="scan-prompt" v-if="!hasLoaded && !loading">
+      <Icon name="search" :size="32" />
+      <p>点击下方按钮开始扫描</p>
+      <button class="btn btn-primary" @click="analyze">分析磁盘</button>
+    </div>
+
     <!-- 加载中 -->
     <div v-if="loading" class="loading">
       <div class="spinner" style="width:20px;height:20px"></div>
@@ -82,7 +89,7 @@
     </div>
 
     <!-- 空状态 -->
-    <div v-else class="card empty-state">
+    <div v-else-if="hasLoaded" class="card empty-state">
       <Icon name="hard-drive" :size="28" :stroke-width="1.5" class="empty-icon" />
       <p>未检测到磁盘，请以管理员身份运行程序后重新分析。</p>
     </div>
@@ -122,11 +129,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
 
 const loading = ref(true);
+const hasLoaded = ref(false);
 const running = ref("");
 const drives = ref([]);
 const output = ref(null);
@@ -148,6 +156,7 @@ async function analyze() {
     };
   }
   loading.value = false;
+  hasLoaded.value = true;
 }
 
 async function runDefrag(drive) {
@@ -202,8 +211,6 @@ function fragProgressClass(percent) {
   if (percent > 10) return "medium";
   return "normal";
 }
-
-onMounted(analyze);
 </script>
 
 <style scoped>
@@ -248,6 +255,21 @@ onMounted(analyze);
   padding: 60px 20px;
   color: var(--text-muted);
   font-size: 12px;
+}
+
+/* 初始扫描提示 */
+.scan-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 80px 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.scan-prompt p {
+  font-size: 13px;
+  margin: 0;
 }
 
 .drive-list {

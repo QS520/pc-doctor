@@ -59,6 +59,13 @@
       </div>
     </div>
 
+    <!-- 初始扫描提示 -->
+    <div class="scan-prompt" v-if="!hasLoaded && !scanning">
+      <Icon name="search" :size="32" />
+      <p>点击下方按钮开始扫描</p>
+      <button class="btn btn-primary" @click="scan">开始扫描</button>
+    </div>
+
     <!-- 分类列表 -->
     <div v-if="scanning" class="loading">
       <div class="spinner" style="width:20px;height:20px"></div>
@@ -99,7 +106,7 @@
     </div>
 
     <!-- 快捷工具 -->
-    <div class="card quick-tools" v-if="!scanning">
+    <div class="card quick-tools" v-if="hasLoaded && !scanning">
       <div class="card-header">
         <span class="card-title">快捷工具</span>
       </div>
@@ -126,11 +133,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
 
 const scanning = ref(false);
+const hasLoaded = ref(false);
 const cleaning = ref(false);
 const scanResult = ref(null);
 const cleanResult = ref(null);
@@ -164,6 +172,7 @@ async function scan() {
     console.error("Scan failed:", e);
   }
   scanning.value = false;
+  hasLoaded.value = true;
 }
 
 function toggleAll(e) {
@@ -214,8 +223,6 @@ async function emptyRecycle() {
     alert("清空失败: " + e);
   }
 }
-
-onMounted(scan);
 </script>
 
 <style scoped>
@@ -257,6 +264,21 @@ onMounted(scan);
   padding: 80px 20px;
   color: var(--text-muted);
   font-size: 12px;
+}
+
+/* 初始扫描提示 */
+.scan-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 80px 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.scan-prompt p {
+  font-size: 13px;
+  margin: 0;
 }
 
 /* 操作栏 */

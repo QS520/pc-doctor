@@ -14,8 +14,15 @@
       </div>
     </div>
 
+    <!-- 初始状态：开始扫描 -->
+    <div v-if="!hasLoaded && !loadingAdapters" class="scan-prompt">
+      <Icon name="search" :size="32" />
+      <p>点击下方按钮开始扫描</p>
+      <button class="btn btn-primary" @click="loadAdapters">开始扫描</button>
+    </div>
+
     <!-- 1. 网络适配器 -->
-    <div class="card section-card">
+    <div class="card section-card" v-if="hasLoaded || loadingAdapters">
       <div class="card-header">
         <div class="section-title">
           <Icon name="wifi" :size="13" :stroke-width="1.75" />
@@ -236,11 +243,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
 
-const loadingAdapters = ref(true);
+const loadingAdapters = ref(false);
+const hasLoaded = ref(false);
 const adapters = ref([]);
 
 const pingHost = ref("8.8.8.8");
@@ -266,6 +274,7 @@ async function loadAdapters() {
     adapters.value = [];
   }
   loadingAdapters.value = false;
+  hasLoaded.value = true;
 }
 
 async function runPing() {
@@ -334,8 +343,6 @@ function formatTime(t) {
   if (t === undefined || t === null) return "-";
   return t.toFixed(1) + " ms";
 }
-
-onMounted(loadAdapters);
 </script>
 
 <style scoped>
@@ -577,6 +584,21 @@ onMounted(loadAdapters);
   padding: 60px 20px;
   color: var(--text-muted);
   font-size: 12px;
+}
+
+/* 初始扫描提示 */
+.scan-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 80px 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.scan-prompt p {
+  font-size: 13px;
+  margin: 0;
 }
 
 .loading.small {

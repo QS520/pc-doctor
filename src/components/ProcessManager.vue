@@ -23,8 +23,15 @@
       </div>
     </div>
 
+    <!-- 初始扫描提示 -->
+    <div class="scan-prompt" v-if="!hasLoaded && !loading">
+      <Icon name="search" :size="32" />
+      <p>点击下方按钮开始扫描</p>
+      <button class="btn btn-primary" @click="loadProcesses">加载进程列表</button>
+    </div>
+
     <!-- 进程列表 -->
-    <div class="card process-card" v-if="!loading">
+    <div class="card process-card" v-if="hasLoaded && !loading">
       <div class="process-table-wrapper">
         <table>
           <thead>
@@ -85,7 +92,7 @@
     </div>
 
     <!-- 提示 -->
-    <div class="tip-card" v-if="!loading">
+    <div class="tip-card" v-if="hasLoaded && !loading">
       <span class="tip-icon"><Icon name="alert" :size="14" :stroke-width="2" /></span>
       <div>
         <p><strong>注意:</strong> 结束系统关键进程可能导致系统不稳定或蓝屏。</p>
@@ -96,11 +103,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
 
 const loading = ref(true);
+const hasLoaded = ref(false);
 const processes = ref([]);
 const sortBy = ref("cpu");
 
@@ -112,6 +120,7 @@ async function loadProcesses() {
     console.error("Failed to load processes:", e);
   }
   loading.value = false;
+  hasLoaded.value = true;
 }
 
 async function killProc(proc) {
@@ -142,8 +151,6 @@ function translateStatus(status) {
   };
   return map[status] || status;
 }
-
-onMounted(loadProcesses);
 </script>
 
 <style scoped>
@@ -172,6 +179,21 @@ onMounted(loadProcesses);
   padding: 80px 20px;
   color: var(--text-muted);
   font-size: 12px;
+}
+
+/* 初始扫描提示 */
+.scan-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 80px 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.scan-prompt p {
+  font-size: 13px;
+  margin: 0;
 }
 
 /* 排序选择 */

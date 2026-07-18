@@ -49,7 +49,7 @@
       <p>正在扫描...</p>
     </div>
 
-    <template v-else>
+    <template v-else-if="hasLoaded">
       <!-- 第一级：磁盘列表 -->
       <div v-if="view === 'drives'" class="drives-grid">
         <div
@@ -207,6 +207,7 @@ import { listen } from "@tauri-apps/api/event";
 import Icon from "./Icon.vue";
 
 const loading = ref(true);
+const hasLoaded = ref(false);
 const view = ref("drives"); // "drives" / "list"
 const drives = ref([]);
 const currentResult = ref(null);
@@ -310,6 +311,7 @@ async function loadDrives() {
     currentPath.value = "";
   }
   loading.value = false;
+  hasLoaded.value = true;
 }
 
 async function loadDirectory(path) {

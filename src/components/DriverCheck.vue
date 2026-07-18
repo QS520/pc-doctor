@@ -79,6 +79,13 @@
       <p>正在检查驱动程序状态...</p>
     </div>
 
+    <!-- 初始状态：开始扫描 -->
+    <div v-else-if="!hasLoaded" class="scan-prompt">
+      <Icon name="search" :size="32" />
+      <p>点击下方按钮开始扫描</p>
+      <button class="btn btn-primary" @click="checkDrivers">开始扫描</button>
+    </div>
+
     <!-- 驱动表格 -->
     <div v-else-if="result" class="card driver-card">
       <div class="driver-table-wrapper">
@@ -139,11 +146,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
 
-const loading = ref(true);
+const loading = ref(false);
+const hasLoaded = ref(false);
 const result = ref(null);
 const filter = ref("all");
 const searchKeyword = ref("");
@@ -199,6 +207,7 @@ async function checkDrivers() {
     result.value = null;
   }
   loading.value = false;
+  hasLoaded.value = true;
 }
 
 function statusClass(status) {
@@ -207,8 +216,6 @@ function statusClass(status) {
   if (status === "异常") return "tag-danger";
   return "tag-info";
 }
-
-onMounted(checkDrivers);
 </script>
 
 <style scoped>
@@ -372,6 +379,21 @@ onMounted(checkDrivers);
   padding: 80px 20px;
   color: var(--text-muted);
   font-size: 12px;
+}
+
+/* 初始扫描提示 */
+.scan-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 80px 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.scan-prompt p {
+  font-size: 13px;
+  margin: 0;
 }
 
 /* 驱动表格 */

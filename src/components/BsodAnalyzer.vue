@@ -19,6 +19,13 @@
       </div>
     </div>
 
+    <!-- 初始状态：开始扫描 -->
+    <div v-if="!hasLoaded && !analyzing" class="scan-prompt">
+      <Icon name="search" :size="32" />
+      <p>点击下方按钮开始扫描</p>
+      <button class="btn btn-primary" @click="analyze">开始扫描</button>
+    </div>
+
     <!-- 概览卡片 -->
     <div class="overview-grid" v-if="result">
       <div class="stat-card">
@@ -149,11 +156,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
 
 const analyzing = ref(false);
+const hasLoaded = ref(false);
 const loadingErrors = ref(false);
 const result = ref(null);
 const systemErrors = ref([]);
@@ -166,6 +174,7 @@ async function analyze() {
     console.error("Analysis failed:", e);
   }
   analyzing.value = false;
+  hasLoaded.value = true;
 }
 
 async function loadErrors() {
@@ -177,8 +186,6 @@ async function loadErrors() {
   }
   loadingErrors.value = false;
 }
-
-onMounted(analyze);
 </script>
 
 <style scoped>
@@ -206,6 +213,21 @@ onMounted(analyze);
   padding: 80px 20px;
   color: var(--text-muted);
   font-size: 12px;
+}
+
+/* 初始扫描提示 */
+.scan-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 80px 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.scan-prompt p {
+  font-size: 13px;
+  margin: 0;
 }
 
 .title-group {

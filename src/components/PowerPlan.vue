@@ -14,8 +14,15 @@
       </div>
     </div>
 
+    <!-- 初始扫描提示 -->
+    <div class="scan-prompt" v-if="!hasLoaded && !loading">
+      <Icon name="search" :size="32" />
+      <p>点击下方按钮开始扫描</p>
+      <button class="btn btn-primary" @click="loadAll">加载电源计划</button>
+    </div>
+
     <!-- 1. 电源计划 -->
-    <div class="card section-card">
+    <div class="card section-card" v-if="hasLoaded || loading">
       <div class="card-header">
         <div class="section-title">
           <Icon name="power" :size="13" :stroke-width="1.75" />
@@ -213,11 +220,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
 
 const loading = ref(true);
+const hasLoaded = ref(false);
 const plans = ref([]);
 const throttle = ref(null);
 const busyGuid = ref("");
@@ -243,6 +251,7 @@ async function loadAll() {
     feedback.value = { success: false, message: "加载电源信息失败: " + e };
   }
   loading.value = false;
+  hasLoaded.value = true;
 }
 
 async function setPlan(plan) {
@@ -297,8 +306,6 @@ function formatTimeout(minutes) {
   const m = minutes % 60;
   return m === 0 ? `${h} 小时` : `${h} 小时 ${m} 分钟`;
 }
-
-onMounted(loadAll);
 </script>
 
 <style scoped>
@@ -660,6 +667,21 @@ onMounted(loadAll);
 
 .loading.small {
   padding: 36px 20px;
+}
+
+/* 初始扫描提示 */
+.scan-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 80px 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.scan-prompt p {
+  font-size: 13px;
+  margin: 0;
 }
 
 /* 空状态 */

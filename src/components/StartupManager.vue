@@ -15,7 +15,7 @@
     </div>
 
     <!-- 开机信息 -->
-    <div class="boot-info" v-if="bootDuration">
+    <div class="boot-info" v-if="hasLoaded && bootDuration">
       <div class="boot-stat">
         <span class="boot-icon">
           <Icon name="clock" :size="15" :stroke-width="1.75" />
@@ -49,13 +49,13 @@
       </div>
     </div>
 
-    <div v-if="bootDuration && bootDuration.boot_duration_seconds > 60" class="tip-card tip-warning">
+    <div v-if="hasLoaded && bootDuration && bootDuration.boot_duration_seconds > 60" class="tip-card tip-warning">
       <span class="tip-icon"><Icon name="info" :size="14" :stroke-width="2" /></span>
       <p>开机耗时较长，建议禁用不必要的启动项来加速开机。</p>
     </div>
 
     <!-- 启动项列表 -->
-    <div class="card" v-if="!loading">
+    <div class="card" v-if="hasLoaded && !loading">
       <div class="card-header">
         <span class="card-title">启动项管理</span>
         <span class="tip-text">点击开关启用 / 禁用启动项</span>
@@ -99,8 +99,15 @@
       <p>正在读取启动项...</p>
     </div>
 
+    <!-- 初始加载提示 -->
+    <div class="scan-prompt" v-if="!hasLoaded && !loading">
+      <Icon name="search" :size="32" />
+      <p>点击下方按钮开始加载</p>
+      <button class="btn btn-primary" @click="refresh">加载开机项</button>
+    </div>
+
     <!-- 提示 -->
-    <div class="tip-card tip-info" v-if="!loading">
+    <div class="tip-card tip-info" v-if="hasLoaded && !loading">
       <span class="tip-icon"><Icon name="alert" :size="14" :stroke-width="2" /></span>
       <div>
         <p>禁用启动项不会卸载程序，只是阻止它在开机时自动启动。</p>
@@ -111,11 +118,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
 
-const loading = ref(true);
+const loading = ref(false);
+const hasLoaded = ref(false);
 const startupItems = ref([]);
 const bootDuration = ref(null);
 
@@ -132,6 +140,7 @@ async function refresh() {
     console.error("Failed to load startup items:", e);
   }
   loading.value = false;
+  hasLoaded.value = true;
 }
 
 async function toggleStartup(item) {
@@ -147,8 +156,6 @@ async function toggleStartup(item) {
     alert("操作失败: " + e);
   }
 }
-
-onMounted(refresh);
 </script>
 
 <style scoped>
@@ -406,5 +413,19 @@ onMounted(refresh);
   flex-direction: column;
   align-items: center;
   gap: 8px;
+}
+
+.scan-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 80px 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.scan-prompt p {
+  font-size: 13px;
+  margin: 0;
 }
 </style>

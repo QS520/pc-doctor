@@ -17,6 +17,12 @@
       <p>正在采集系统数据...</p>
     </div>
 
+    <div class="scan-prompt" v-else-if="!hasLoaded">
+      <Icon name="search" :size="32" />
+      <p>点击下方按钮开始加载</p>
+      <button class="btn btn-primary" @click="refresh">开始加载</button>
+    </div>
+
     <template v-else>
       <!-- 实时负载仪表盘 -->
       <div class="metric-grid">
@@ -352,7 +358,8 @@ import { listen } from "@tauri-apps/api/event";
 import Icon from "./Icon.vue";
 
 const emit = defineEmits(["navigate"]);
-const loading = ref(true);
+const loading = ref(false);
+const hasLoaded = ref(false);
 const systemInfo = ref({
   cpu: { brand: "", core_count: 0, usage: 0, frequency: 0 },
   memory: { total_gb: 0, used_gb: 0, free_gb: 0, usage_percent: 0 },
@@ -454,6 +461,7 @@ async function refresh() {
       console.log("Disk details query skipped:", e)
     );
   }
+  hasLoaded.value = true;
 }
 
 // 监听磁盘详情更新事件
@@ -493,7 +501,6 @@ async function setupDiskDetailsListener() {
 
 onMounted(() => {
   setupDiskDetailsListener();
-  refresh();
 });
 
 onUnmounted(() => {
@@ -776,5 +783,19 @@ onUnmounted(() => {
   .three-col {
     grid-template-columns: 1fr;
   }
+}
+
+.scan-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 80px 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.scan-prompt p {
+  font-size: 13px;
+  margin: 0;
 }
 </style>

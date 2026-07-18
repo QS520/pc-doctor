@@ -72,9 +72,10 @@
     </div>
 
     <!-- 初始空状态 -->
-    <div v-else-if="!result" class="card empty-state initial-empty">
-      <Icon name="activity" :size="28" :stroke-width="1.5" />
-      <p>点击「开始分析」检测系统文件、注册表、启动配置、更新与激活状态</p>
+    <div v-else-if="!hasLoaded" class="scan-prompt">
+      <Icon name="search" :size="32" />
+      <p>点击下方按钮开始扫描</p>
+      <button class="btn btn-primary" @click="analyze">开始扫描</button>
     </div>
 
     <!-- 健康状态 -->
@@ -362,6 +363,7 @@ import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
 
 const loading = ref(false);
+const hasLoaded = ref(false);
 const result = ref(null);
 const isAdmin = ref(true);
 const exportLoading = ref(false);
@@ -601,6 +603,7 @@ async function analyze() {
     result.value = null;
   }
   loading.value = false;
+  hasLoaded.value = true;
 }
 
 /* —— 权限检测 —— */
@@ -755,6 +758,21 @@ onMounted(() => {
   padding: 80px 20px;
   color: var(--text-muted);
   font-size: 12px;
+}
+
+/* 初始扫描提示 */
+.scan-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 80px 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.scan-prompt p {
+  font-size: 13px;
+  margin: 0;
 }
 
 /* 空状态 */

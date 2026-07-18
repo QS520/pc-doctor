@@ -31,6 +31,13 @@
       <p>正在诊断硬件...</p>
     </div>
 
+    <!-- 初始状态：开始扫描 -->
+    <div v-else-if="!hasLoaded" class="scan-prompt">
+      <Icon name="search" :size="32" />
+      <p>点击下方按钮开始扫描</p>
+      <button class="btn btn-primary" @click="runDiagnosis">开始扫描</button>
+    </div>
+
     <!-- 3. 诊断结果 -->
     <template v-else-if="report">
       <!-- 顶部状态条 -->
@@ -311,7 +318,8 @@ import { ref, computed, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
 
-const loading = ref(true);
+const loading = ref(false);
+const hasLoaded = ref(false);
 const report = ref(null);
 const showMemoryConfirm = ref(false);
 const isAdmin = ref(true);
@@ -420,6 +428,7 @@ async function runDiagnosis() {
     report.value = null;
   }
   loading.value = false;
+  hasLoaded.value = true;
 }
 
 async function launchMemoryDiag() {
@@ -463,7 +472,6 @@ async function exportReport() {
 
 onMounted(() => {
   checkPermission();
-  runDiagnosis();
 });
 </script>
 
@@ -521,6 +529,21 @@ onMounted(() => {
   padding: 80px 20px;
   color: var(--text-muted);
   font-size: 12px;
+}
+
+/* ===== 初始扫描提示 ===== */
+.scan-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 80px 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.scan-prompt p {
+  font-size: 13px;
+  margin: 0;
 }
 
 /* ===== 顶部状态条 ===== */
