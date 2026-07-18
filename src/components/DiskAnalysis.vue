@@ -122,6 +122,15 @@
               <span class="stat-label">条目数</span>
               <span class="stat-value mono">{{ currentResult.entries.length }}</span>
             </span>
+            <span class="stat-divider"></span>
+            <span class="stat">
+              <span class="stat-label">扫描耗时</span>
+              <span class="stat-value mono">{{ (currentResult.scan_time_ms / 1000).toFixed(2) }}s</span>
+            </span>
+            <span v-if="currentResult.has_partial" class="partial-tag" title="部分大目录因超时未完整扫描，显示为估算大小">
+              <Icon name="alert" :size="11" :stroke-width="2" />
+              <span>部分估算</span>
+            </span>
           </div>
         </div>
 
@@ -341,6 +350,8 @@ function getDemoDirectory(path) {
     total_size_display: formatDemoSize(totalSize),
     entry_count: demoEntries.length,
     is_root: path.length <= 3,
+    scan_time_ms: 1200,
+    has_partial: false,
   };
 }
 
@@ -831,6 +842,21 @@ onMounted(loadDrives);
   background: var(--accent-dim);
   color: var(--accent);
   border-color: var(--accent);
+}
+
+/* 部分估算标签 */
+.partial-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  background: var(--warning-dim);
+  border: 1px solid var(--warning);
+  color: var(--warning);
+  font-size: 10px;
+  font-weight: 500;
+  cursor: help;
 }
 
 .empty-state {

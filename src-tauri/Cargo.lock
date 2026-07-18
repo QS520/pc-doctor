@@ -2166,12 +2166,14 @@ dependencies = [
  "chrono",
  "encoding_rs",
  "glob",
+ "rayon",
  "serde",
  "serde_json",
  "sysinfo",
  "tauri",
  "tauri-build",
  "tauri-plugin-shell",
+ "tokio",
  "uuid",
  "walkdir",
  "windows 0.58.0",
@@ -3480,9 +3482,23 @@ dependencies = [
  "bytes",
  "libc",
  "mio",
+ "parking_lot",
  "pin-project-lite",
+ "signal-hook-registry",
  "socket2",
+ "tokio-macros",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "tokio-macros"
+version = "2.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6328af13490e73a9b4694030fafd93f8c8c6a9dede33e821c3fc63eddf8042ba"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]
