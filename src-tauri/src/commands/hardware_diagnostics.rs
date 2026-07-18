@@ -73,9 +73,22 @@ pub struct HardwareDiagnostics {
 #[tauri::command]
 pub fn diagnose_hardware() -> HardwareDiagnostics {
     let mut findings: Vec<Finding> = Vec::new();
-    let mut problem_devices: Vec<ProblemDevice> = Vec::new();
-    let mut whea_errors: Vec<WheaError> = Vec::new();
-    let mut smart_attrs: Vec<SmartAttribute> = Vec::new();
+
+    #[cfg(windows)]
+    let mut problem_devices: Vec<ProblemDevice>;
+    #[cfg(not(windows))]
+    let problem_devices: Vec<ProblemDevice> = Vec::new();
+
+    #[cfg(windows)]
+    let mut whea_errors: Vec<WheaError>;
+    #[cfg(not(windows))]
+    let whea_errors: Vec<WheaError> = Vec::new();
+
+    #[cfg(windows)]
+    let mut smart_attrs: Vec<SmartAttribute>;
+    #[cfg(not(windows))]
+    let smart_attrs: Vec<SmartAttribute> = Vec::new();
+
     let mut battery: Option<BatteryHealth> = None;
     let mut memory_errors = false;
 

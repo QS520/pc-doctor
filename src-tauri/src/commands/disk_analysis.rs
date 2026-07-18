@@ -155,6 +155,7 @@ pub fn scan_directory_sizes(path: Option<String>) -> Vec<DirectorySize> {
 
 /// 删除指定文件
 #[tauri::command]
+#[allow(dead_code)]
 pub fn delete_file(path: String) -> Result<bool, String> {
     let path_buf = PathBuf::from(&path);
     if !path_buf.exists() {
@@ -169,6 +170,7 @@ pub fn delete_file(path: String) -> Result<bool, String> {
 
 /// 删除指定目录
 #[tauri::command]
+#[allow(dead_code)]
 pub fn delete_directory(path: String) -> Result<bool, String> {
     let path_buf = PathBuf::from(&path);
     if !path_buf.exists() {

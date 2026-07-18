@@ -170,13 +170,8 @@ fn get_windows_disks() -> Vec<DiskInfo> {
     };
 
     // GetDriveTypeW 返回值常量（windows crate 中未导出，手动定义）
-    const DRIVE_UNKNOWN: u32 = 0;
-    const DRIVE_NO_ROOT_DIR: u32 = 1;
     const DRIVE_REMOVABLE: u32 = 2;
     const DRIVE_FIXED: u32 = 3;
-    const DRIVE_REMOTE: u32 = 4;
-    const DRIVE_CDROM: u32 = 5;
-    const DRIVE_RAMDISK: u32 = 6;
 
     let mut result = Vec::new();
 

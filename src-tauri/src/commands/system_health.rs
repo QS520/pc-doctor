@@ -393,7 +393,7 @@ $results | ForEach-Object { Write-Output $_ }
 #[cfg(windows)]
 fn check_boot_config() -> BootConfig {
     let mut boot_errors = Vec::new();
-    let mut description = String::new();
+    let description;
     let mut safe_mode = false;
     let mut boot_time: u64 = 0;
 

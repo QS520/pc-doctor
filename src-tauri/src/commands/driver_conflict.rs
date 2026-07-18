@@ -52,8 +52,17 @@ pub struct DriverConflictReport {
 #[tauri::command]
 pub fn diagnose_driver_conflicts() -> DriverConflictReport {
     let mut conflicts: Vec<DriverConflict> = Vec::new();
-    let mut version_conflicts: Vec<DriverVersionConflict> = Vec::new();
-    let mut load_failures: Vec<DriverLoadFailure> = Vec::new();
+
+    #[cfg(windows)]
+    let mut version_conflicts: Vec<DriverVersionConflict>;
+    #[cfg(not(windows))]
+    let version_conflicts: Vec<DriverVersionConflict> = Vec::new();
+
+    #[cfg(windows)]
+    let mut load_failures: Vec<DriverLoadFailure>;
+    #[cfg(not(windows))]
+    let load_failures: Vec<DriverLoadFailure> = Vec::new();
+
     let mut unsigned: Vec<DriverConflict> = Vec::new();
     let mut recommendations: Vec<String> = Vec::new();
 
@@ -218,6 +227,7 @@ struct DriverInfoRaw {
 }
 
 #[cfg(windows)]
+#[allow(dead_code)]
 struct DriverRecord {
     device_name: String,
     driver_name: String,

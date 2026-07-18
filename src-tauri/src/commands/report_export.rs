@@ -5,6 +5,7 @@ use chrono::Local;
 
 /// 导出的报告类型
 #[derive(Serialize, Deserialize, Clone, Debug)]
+#[allow(dead_code)]
 pub struct ExportRequest {
     pub report_type: String,    // "hardware" / "driver" / "system" / "full"
     pub data: serde_json::Value, // 原始诊断数据

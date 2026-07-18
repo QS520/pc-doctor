@@ -60,31 +60,24 @@ pub struct HardwareInfo {
 /// 获取硬件信息（内存条、CPU、主板、显卡）
 #[tauri::command]
 pub fn get_hardware_info() -> HardwareInfo {
-    let mut memory_sticks = Vec::new();
-    let mut cpu = None;
-    let mut motherboard = None;
-    let mut gpus = Vec::new();
-
     #[cfg(windows)]
     {
-        // 查询内存条信息
-        memory_sticks = query_wmi_memory();
-
-        // 查询 CPU 硬件信息
-        cpu = query_wmi_cpu();
-
-        // 查询主板信息
-        motherboard = query_wmi_motherboard();
-
-        // 查询显卡信息
-        gpus = query_wmi_gpu();
+        HardwareInfo {
+            memory_sticks: query_wmi_memory(),
+            cpu: query_wmi_cpu(),
+            motherboard: query_wmi_motherboard(),
+            gpus: query_wmi_gpu(),
+        }
     }
 
-    HardwareInfo {
-        memory_sticks,
-        cpu,
-        motherboard,
-        gpus,
+    #[cfg(not(windows))]
+    {
+        HardwareInfo {
+            memory_sticks: Vec::new(),
+            cpu: None,
+            motherboard: None,
+            gpus: Vec::new(),
+        }
     }
 }
 

@@ -161,6 +161,7 @@ Get-CimInstance -ClassName Win32_PnPEntity | Where-Object { $_.ConfigManagerErro
 }
 
 /// 检查驱动日期是否过期 (超过 2 年视为可能过期)
+#[allow(dead_code)]
 fn check_driver_date(date_str: &str) -> bool {
     if date_str.is_empty() || date_str == "Unknown" {
         return true; // 未知日期不标记为过期

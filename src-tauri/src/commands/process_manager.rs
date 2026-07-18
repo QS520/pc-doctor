@@ -94,6 +94,7 @@ pub fn kill_process(pid: u32) -> Result<bool, String> {
 
 /// 结束进程树 (包括所有子进程)
 #[tauri::command]
+#[allow(dead_code)]
 pub fn kill_process_tree(pid: u32) -> Result<u32, String> {
     let mut sys = System::new_all();
     sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
