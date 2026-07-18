@@ -223,30 +223,38 @@
           </div>
         </div>
 
-        <!-- 右列：内存条 + 显卡 + 磁盘详情 -->
+        <!-- 右列：硬盘 + 内存条 + 显卡 -->
         <div class="col">
-          <!-- 磁盘信息（简洁版：厂商/类型/容量） -->
-          <div class="card" v-if="systemInfo.disks && systemInfo.disks.length">
+          <!-- 硬盘（按物理磁盘显示：大小/厂商/类型） -->
+          <div class="card" v-if="physicalDisks.length">
             <div class="card-header" @click="hwDisk = !hwDisk" style="cursor:pointer;user-select:none">
-              <span class="card-title">磁盘</span>
+              <span class="card-title">硬盘</span>
+              <span class="tag tag-info">{{ physicalDisks.length }}</span>
               <Icon :name="hwDisk ? 'chevron-down' : 'chevron-right'" :size="14" :stroke-width="2" />
             </div>
             <div class="card-body" v-if="hwDisk">
-              <div class="disk-block" v-for="(disk, idx) in systemInfo.disks" :key="idx">
-                <div class="disk-block-head">
-                  <Icon name="disc" :size="12" />
-                  <span class="disk-block-name">{{ disk.drive }}: 盘</span>
-                  <span class="tag tag-neutral" v-if="disk.is_ssd">固态 SSD</span>
-                  <span class="tag tag-neutral" v-else-if="disk.model">机械 HDD</span>
-                  <span class="tag tag-loading" v-else>加载中</span>
+              <div class="hw-disk-item" v-for="(disk, idx) in physicalDisks" :key="idx">
+                <div class="hw-disk-head">
+                  <Icon name="hard-drive" :size="13" />
+                  <span class="hw-disk-name">{{ disk.model || '未知硬盘' }}</span>
+                </div>
+                <div class="hw-disk-tags">
+                  <span class="tag" :class="disk.is_ssd ? 'tag-success' : 'tag-neutral'">
+                    {{ disk.is_ssd ? '固态 SSD' : '机械 HDD' }}
+                  </span>
+                  <span class="tag tag-neutral" v-if="disk.size">{{ disk.size }}</span>
                 </div>
                 <div class="kv-row" v-if="disk.model && disk.model !== '-'">
                   <span class="kv-label">厂商/型号</span>
                   <span class="kv-value">{{ disk.model }}</span>
                 </div>
-                <div class="kv-row">
-                  <span class="kv-label">总容量</span>
-                  <span class="kv-value mono">{{ disk.total_gb }} GB</span>
+                <div class="kv-row" v-if="disk.size">
+                  <span class="kv-label">容量</span>
+                  <span class="kv-value mono">{{ disk.size }}</span>
+                </div>
+                <div class="kv-row" v-if="disk.interface_type && disk.interface_type !== '-'">
+                  <span class="kv-label">接口</span>
+                  <span class="kv-value mono">{{ disk.interface_type }}</span>
                 </div>
               </div>
             </div>
@@ -398,6 +406,39 @@ const mergedMemorySticks = computed(() => {
   return Object.values(groups);
 });
 
+// 物理硬盘列表（按型号去重，合并同一硬盘的多个分区）
+const physicalDisks = computed(() => {
+  if (!systemInfo.value.disks || systemInfo.value.disks.length === 0) return [];
+  const groups = {};
+  for (const disk of systemInfo.value.disks) {
+    // 用型号作为物理硬盘分组键（同一型号通常是同一块物理硬盘）
+    const key = disk.model && disk.model !== '-' ? disk.model : `unknown-${disk.drive}`;
+    if (!groups[key]) {
+      groups[key] = {
+        model: disk.model && disk.model !== '-' ? disk.model : '',
+        is_ssd: disk.is_ssd,
+        interface_type: disk.interface_type || '',
+        // 取所有分区中最大的总容量作为硬盘容量
+        size: formatDiskSize(disk.total_gb),
+        total_gb: disk.total_gb,
+      };
+    } else {
+      // 同一物理硬盘的多个分区，取最大容量
+      if (disk.total_gb > groups[key].total_gb) {
+        groups[key].total_gb = disk.total_gb;
+        groups[key].size = formatDiskSize(disk.total_gb);
+      }
+    }
+  }
+  return Object.values(groups);
+});
+
+function formatDiskSize(gb) {
+  if (!gb || gb <= 0) return '';
+  if (gb >= 1000) return (gb / 1000).toFixed(2) + ' TB';
+  return gb.toFixed(0) + ' GB';
+}
+
 function getBarClass(percent) {
   if (percent > 85) return "high";
   if (percent > 60) return "medium";
@@ -531,40 +572,48 @@ onUnmounted(() => {
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 12px 13px;
+  padding: 14px 15px;
   border-left: 3px solid var(--accent);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.metric:hover {
+  border-color: var(--border-strong, var(--accent));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .metric-cpu { border-left-color: var(--info); }
 .metric-mem { border-left-color: var(--accent); }
-.metric-disk { border-left-color: var(--warning); }
 .metric-battery { border-left-color: var(--success); }
 
 .metric-head {
   display: flex;
   align-items: center;
   gap: 7px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   color: var(--text-secondary);
 }
 
 .metric-label {
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   flex: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .metric-value {
   font-family: var(--font-mono);
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 22px;
+  font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+  line-height: 1;
 }
 
 .metric-value .unit {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
   margin-left: 1px;
   font-weight: 400;
@@ -678,47 +727,39 @@ onUnmounted(() => {
   flex: 1;
 }
 
-/* 磁盘详情块 */
-.disk-list {
-  max-height: 480px;
-  overflow-y: auto;
-}
-
-.disk-block {
+/* 硬盘项 */
+.hw-disk-item {
   padding: 12px 0;
   border-top: 1px solid var(--border);
 }
 
-.tag-loading {
-  background: var(--bg-hover);
-  color: var(--text-muted);
-  border-color: var(--border);
-  animation: tag-pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes tag-pulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
-}
-
-.disk-block:first-child {
+.hw-disk-item:first-child {
   padding-top: 0;
   border-top: none;
 }
 
-.disk-block-head {
+.hw-disk-head {
   display: flex;
   align-items: center;
   gap: 7px;
-  margin-bottom: 10px;
-  color: var(--text-secondary);
+  margin-bottom: 8px;
+  color: var(--accent);
 }
 
-.disk-block-name {
-  font-size: 11.5px;
+.hw-disk-name {
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
   flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hw-disk-tags {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 8px;
 }
 
 .disk-capacity {
