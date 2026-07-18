@@ -228,8 +228,63 @@
           </div>
         </div>
 
-        <!-- 右列：内存条 + 显卡 -->
+        <!-- 右列：内存条 + 显卡 + 磁盘详情 -->
         <div class="col">
+          <!-- 磁盘详情卡 -->
+          <div class="card" v-if="systemInfo.disks && systemInfo.disks.length">
+            <div class="card-header" @click="hwDisk = !hwDisk" style="cursor:pointer;user-select:none">
+              <span class="card-title">磁盘详情 {{ systemInfo.disks.length > 1 ? `(${systemInfo.disks.length})` : '' }}</span>
+              <Icon :name="hwDisk ? 'chevron-down' : 'chevron-right'" :size="14" :stroke-width="2" />
+            </div>
+            <div class="card-body" v-if="hwDisk">
+              <div class="disk-block" v-for="(disk, idx) in systemInfo.disks" :key="idx">
+                <div class="disk-block-head">
+                  <Icon name="disc" :size="12" />
+                  <span class="disk-block-name">{{ disk.drive }}: 盘</span>
+                  <span class="tag tag-neutral" v-if="disk.is_ssd">SSD</span>
+                  <span class="tag tag-neutral" v-else>HDD</span>
+                  <span class="tag" :class="disk.health_status === 'Healthy' ? 'tag-success' : 'tag-warning'" v-if="disk.health_status">
+                    {{ disk.health_status === 'Healthy' ? '健康' : disk.health_status }}
+                  </span>
+                </div>
+                <!-- 容量进度条 -->
+                <div class="disk-capacity">
+                  <div class="bar">
+                    <div class="bar-fill" :class="getBarClass(disk.usage_percent)" :style="{ width: disk.usage_percent + '%' }"></div>
+                  </div>
+                  <div class="disk-capacity-meta">
+                    <span class="mono">{{ disk.used_gb }} / {{ disk.total_gb }} GB</span>
+                    <span class="disk-usage-pct">{{ disk.usage_percent.toFixed(1) }}%</span>
+                  </div>
+                </div>
+                <div class="kv-row" v-if="disk.label && disk.label !== '-'">
+                  <span class="kv-label">卷标</span>
+                  <span class="kv-value">{{ disk.label }}</span>
+                </div>
+                <div class="kv-row" v-if="disk.file_system && disk.file_system !== '-'">
+                  <span class="kv-label">文件系统</span>
+                  <span class="kv-value mono">{{ disk.file_system }}</span>
+                </div>
+                <div class="kv-row" v-if="disk.model">
+                  <span class="kv-label">型号</span>
+                  <span class="kv-value">{{ disk.model }}</span>
+                </div>
+                <div class="kv-row" v-if="disk.interface_type">
+                  <span class="kv-label">接口</span>
+                  <span class="kv-value mono">{{ disk.interface_type }}</span>
+                </div>
+                <div class="kv-row" v-if="disk.partition_style">
+                  <span class="kv-label">分区样式</span>
+                  <span class="kv-value mono">{{ disk.partition_style }}</span>
+                </div>
+                <div class="kv-row" v-if="disk.serial_number && disk.serial_number !== '-'">
+                  <span class="kv-label">序列号</span>
+                  <span class="kv-value mono">{{ disk.serial_number }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- 内存条 -->
           <div class="card" v-if="hardwareInfo && hardwareInfo.memory_sticks && hardwareInfo.memory_sticks.length">
             <div class="card-header" @click="hwMem = !hwMem" style="cursor:pointer;user-select:none">
@@ -348,6 +403,7 @@ const hwCpu = ref(true);
 const hwMb = ref(true);
 const hwMem = ref(true);
 const hwGpu = ref(true);
+const hwDisk = ref(true);
 
 const totalMemoryGB = computed(() => {
   if (!hardwareInfo.value?.memory_sticks) return 0;
@@ -579,6 +635,66 @@ onMounted(refresh);
   font-weight: 600;
   color: var(--text-primary);
   flex: 1;
+}
+
+/* 磁盘详情块 */
+.disk-block {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.disk-block:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+
+.disk-block-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  color: var(--text-secondary);
+}
+
+.disk-block-name {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.disk-capacity {
+  margin-bottom: 10px;
+}
+
+.disk-capacity .bar {
+  margin-bottom: 5px;
+}
+
+.disk-capacity-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.disk-usage-pct {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.tag-success {
+  background: var(--success-dim);
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.tag-warning {
+  background: var(--warning-dim);
+  color: var(--warning);
+  border-color: var(--warning);
 }
 
 .hw-empty {
