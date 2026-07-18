@@ -258,7 +258,7 @@ Get-WmiObject Win32_PnPEntity | Where-Object { $_.ConfigManagerErrorCode -ne 0 }
 
     let mut devices = Vec::new();
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -418,7 +418,7 @@ try {
 
     let mut errors = Vec::new();
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -538,7 +538,7 @@ Get-PhysicalDisk | ForEach-Object {
         .output();
 
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -583,7 +583,7 @@ Get-PhysicalDisk | ForEach-Object {
         .output();
 
     if let Ok(output) = health_output {
-        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -697,7 +697,7 @@ if ($bat) {
         .output();
 
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         let line = stdout.trim();
         if !line.is_empty() {
             let parts: Vec<&str> = line.split('|').collect();
@@ -754,7 +754,7 @@ try {
         .output();
 
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         stdout.trim().parse().unwrap_or(0)
     } else {
         0

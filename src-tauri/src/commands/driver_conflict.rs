@@ -250,7 +250,7 @@ Get-WmiObject Win32_PnPEntity | Where-Object { $_.ConfigManagerErrorCode -ne 0 }
 
     let mut devices = Vec::new();
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -391,7 +391,7 @@ Get-CimInstance Win32_PnPSignedDriver -Filter "DeviceID='{}'" -ErrorAction Silen
         .output();
 
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         let line = stdout.trim();
         if !line.is_empty() {
             let parts: Vec<&str> = line.splitn(4, '|').collect();
@@ -433,7 +433,7 @@ Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DeviceName -and $_.Dri
 
     let mut drivers = Vec::new();
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -531,7 +531,7 @@ try {
 
     let mut failures = Vec::new();
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -590,7 +590,7 @@ Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DriverSignatureProvide
 
     let mut drivers = Vec::new();
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -640,7 +640,7 @@ foreach ($drv in $gpuDrivers) {
         .output();
 
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {

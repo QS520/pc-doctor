@@ -54,7 +54,7 @@ Get-CimInstance -ClassName Win32_PnPSignedDriver | ForEach-Object {
             .output();
 
         if let Ok(output) = output {
-            let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+            let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
 
             for line in stdout.lines() {
                 let line = line.trim();
@@ -127,7 +127,7 @@ Get-CimInstance -ClassName Win32_PnPEntity | Where-Object { $_.ConfigManagerErro
             .output();
 
         if let Ok(problem_output) = problem_output {
-            let (stdout, _, _) = encoding_rs::UTF8.decode(&problem_output.stdout);
+            let (stdout, _, _) = encoding_rs::UTF_8.decode(&problem_output.stdout);
             for line in stdout.lines() {
                 let line = line.trim();
                 if line.is_empty() {

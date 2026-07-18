@@ -289,7 +289,7 @@ if (Test-Path $logFile) {
             .args(["-NoProfile", "-Command", ps_command.trim()])
             .output();
         if let Ok(output) = output {
-            let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+            let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
             for line in stdout.lines() {
                 let line = line.trim();
                 if line.is_empty() {
@@ -371,7 +371,7 @@ $results | ForEach-Object { Write-Output $_ }
         .output();
 
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -408,7 +408,7 @@ fn check_boot_config() -> BootConfig {
         ])
         .output();
     if let Ok(output) = safe_output {
-        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         let val = stdout.trim();
         if !val.is_empty() && val != "normal" && val != "0" {
             safe_mode = true;
@@ -424,7 +424,7 @@ fn check_boot_config() -> BootConfig {
         ])
         .output();
     let last_boot_time = if let Ok(output) = boot_output {
-        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         stdout.trim().to_string()
     } else {
         "未知".to_string()
@@ -439,7 +439,7 @@ fn check_boot_config() -> BootConfig {
         ])
         .output();
     if let Ok(output) = err_output {
-        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if !line.is_empty() {
@@ -466,7 +466,7 @@ fn check_boot_config() -> BootConfig {
         ])
         .output();
     if let Ok(output) = dur_output {
-        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         boot_time = stdout.trim().parse().unwrap_or(0);
     }
 
@@ -521,7 +521,7 @@ if ($count -gt 0) {
 
     let mut updates = Vec::new();
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -582,7 +582,7 @@ fn check_activation() -> ActivationStatus {
         .output();
 
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         let line = stdout.trim();
         let parts: Vec<&str> = line.splitn(2, '|').collect();
         if parts.len() >= 2 {
@@ -676,7 +676,7 @@ try {
         .args(["-NoProfile", "-Command", ps_command.trim()])
         .output();
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         stdout.trim().parse().unwrap_or(0)
     } else {
         0
@@ -706,7 +706,7 @@ try {
         .args(["-NoProfile", "-Command", ps_command.trim()])
         .output();
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         stdout.trim().parse().unwrap_or(0)
     } else {
         0
