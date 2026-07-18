@@ -41,6 +41,23 @@ pub struct SystemInfoResult {
     pub cpu: CpuInfo,
     pub memory: MemoryInfo,
     pub disks: Vec<DiskInfo>,
+    pub network: NetworkInfo,
+    pub battery: Option<BatteryInfo>,
+}
+
+#[derive(Serialize, Clone, Default)]
+pub struct NetworkInfo {
+    pub ip_address: String,
+    pub mac_address: String,
+    pub adapter_name: String,
+}
+
+#[derive(Serialize, Clone)]
+pub struct BatteryInfo {
+    pub has_battery: bool,
+    pub is_charging: bool,
+    pub percent: u8,
+    pub time_remaining_min: Option<u32>,
 }
 
 /// 获取完整系统信息
@@ -110,7 +127,83 @@ pub fn get_system_info() -> SystemInfoResult {
             usage_percent: (mem_percent * 10.0).round() / 10.0,
         },
         disks,
+        network: get_network_info(),
+        battery: get_battery_info(),
     }
+}
+
+/// 获取网络信息（IP 和 MAC 地址）
+#[cfg(windows)]
+fn get_network_info() -> NetworkInfo {
+    use std::process::Command;
+
+    // 获取活跃网卡的 IP 和 MAC
+    let output = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-Command",
+            "Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -ne $null } | Select-Object -First 1 | ForEach-Object { $ip=$_.IPv4Address.IPAddress; $if=$_.InterfaceAlias; $mac=(Get-NetAdapter | Where-Object { $_.Name -eq $if } | Select-Object -ExpandProperty MacAddress); Write-Output \"$ip|$mac|$if\" }",
+        ])
+        .output();
+
+    if let Ok(output) = output {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let line = stdout.trim();
+        if !line.is_empty() {
+            let parts: Vec<&str> = line.splitn(3, '|').collect();
+            if parts.len() >= 3 {
+                return NetworkInfo {
+                    ip_address: parts[0].to_string(),
+                    mac_address: parts[1].to_string(),
+                    adapter_name: parts[2].to_string(),
+                };
+            }
+        }
+    }
+
+    NetworkInfo::default()
+}
+
+#[cfg(not(windows))]
+fn get_network_info() -> NetworkInfo {
+    NetworkInfo::default()
+}
+
+/// 获取电池信息
+#[cfg(windows)]
+fn get_battery_info() -> Option<BatteryInfo> {
+    use std::process::Command;
+
+    let output = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-Command",
+            "$b = Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue; if ($b) { $charging = if($b.BatteryStatus -eq 2){'True'}else{'False'}; $mins = $b.EstimatedChargeRemaining; Write-Output \"True|$charging|$($b.EstimatedChargeRemaining)|$($b.EstimatedRunTime)\" } else { Write-Output 'False' }",
+        ])
+        .output();
+
+    if let Ok(output) = output {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let line = stdout.trim();
+        if line.starts_with("True|") {
+            let parts: Vec<&str> = line.split('|').collect();
+            let is_charging = parts.get(1).map(|s| *s == "True").unwrap_or(false);
+            let percent = parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(0u8);
+            let time_min = parts.get(3).and_then(|s| s.parse::<u32>().ok()).filter(|&v| v > 0 && v < 100000);
+            return Some(BatteryInfo {
+                has_battery: true,
+                is_charging,
+                percent,
+                time_remaining_min: time_min,
+            });
+        }
+    }
+    None
+}
+
+#[cfg(not(windows))]
+fn get_battery_info() -> Option<BatteryInfo> {
+    None
 }
 
 /// 获取 CPU 温度 (通过 WMI 查询)

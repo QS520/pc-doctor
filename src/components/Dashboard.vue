@@ -18,50 +18,59 @@
     </div>
 
     <template v-else>
-      <!-- 实时负载 -->
+      <!-- 实时负载仪表盘 -->
       <div class="metric-grid">
-        <div class="metric">
+        <div class="metric metric-cpu">
           <div class="metric-head">
             <Icon name="cpu" :size="13" :stroke-width="1.75" />
             <span class="metric-label">CPU 负载</span>
             <span class="metric-value">{{ systemInfo.cpu.usage.toFixed(1) }}<span class="unit">%</span></span>
           </div>
           <div class="bar"><div class="bar-fill" :class="getBarClass(systemInfo.cpu.usage)" :style="{ width: systemInfo.cpu.usage + '%' }"></div></div>
-          <div class="metric-meta">
-            <span>{{ systemInfo.cpu.brand }}</span>
-          </div>
+          <div class="metric-meta">{{ systemInfo.cpu.brand }}</div>
           <div class="metric-sub">{{ systemInfo.cpu.core_count }} 核 · {{ (systemInfo.cpu.frequency / 1000).toFixed(2) }} GHz</div>
         </div>
 
-        <div class="metric">
+        <div class="metric metric-mem">
           <div class="metric-head">
             <Icon name="memory-stick" :size="13" :stroke-width="1.75" />
             <span class="metric-label">内存占用</span>
             <span class="metric-value">{{ systemInfo.memory.usage_percent.toFixed(1) }}<span class="unit">%</span></span>
           </div>
           <div class="bar"><div class="bar-fill" :class="getBarClass(systemInfo.memory.usage_percent)" :style="{ width: systemInfo.memory.usage_percent + '%' }"></div></div>
-          <div class="metric-meta">
-            <span class="mono">{{ systemInfo.memory.used_gb }} / {{ systemInfo.memory.total_gb }} GB</span>
-          </div>
+          <div class="metric-meta mono">{{ systemInfo.memory.used_gb }} / {{ systemInfo.memory.total_gb }} GB</div>
           <div class="metric-sub">可用 {{ systemInfo.memory.free_gb }} GB</div>
         </div>
 
-        <div class="metric" v-for="disk in systemInfo.disks" :key="disk.drive">
+        <div class="metric metric-disk" v-for="disk in systemInfo.disks" :key="disk.drive">
           <div class="metric-head">
             <Icon name="disc" :size="13" :stroke-width="1.75" />
             <span class="metric-label">{{ disk.drive }}: 盘</span>
             <span class="metric-value">{{ disk.usage_percent.toFixed(1) }}<span class="unit">%</span></span>
           </div>
           <div class="bar"><div class="bar-fill" :class="getBarClass(disk.usage_percent)" :style="{ width: disk.usage_percent + '%' }"></div></div>
-          <div class="metric-meta">
-            <span class="mono">{{ disk.used_gb }} / {{ disk.total_gb }} GB</span>
-          </div>
+          <div class="metric-meta mono">{{ disk.used_gb }} / {{ disk.total_gb }} GB</div>
           <div class="metric-sub">{{ disk.drive_type }} · 剩余 {{ disk.free_gb }} GB</div>
+        </div>
+
+        <!-- 电池（如果有） -->
+        <div class="metric metric-battery" v-if="systemInfo.battery">
+          <div class="metric-head">
+            <Icon name="battery" :size="13" :stroke-width="1.75" />
+            <span class="metric-label">电池</span>
+            <span class="metric-value">{{ systemInfo.battery.percent }}<span class="unit">%</span></span>
+          </div>
+          <div class="bar"><div class="bar-fill" :class="getBatteryBarClass(systemInfo.battery)" :style="{ width: systemInfo.battery.percent + '%' }"></div></div>
+          <div class="metric-meta">{{ systemInfo.battery.is_charging ? '充电中' : '使用电池' }}</div>
+          <div class="metric-sub" v-if="systemInfo.battery.time_remaining_min">
+            剩余 {{ Math.floor(systemInfo.battery.time_remaining_min / 60) }}h {{ systemInfo.battery.time_remaining_min % 60 }}m
+          </div>
+          <div class="metric-sub" v-else>接通电源</div>
         </div>
       </div>
 
-      <!-- 两列布局：系统信息 + 硬件信息 -->
-      <div class="two-col">
+      <!-- 三列布局 -->
+      <div class="three-col">
         <!-- 左列：系统信息 + 快捷操作 -->
         <div class="col">
           <div class="card">
@@ -85,6 +94,28 @@
               <div class="kv-row">
                 <span class="kv-label">已运行</span>
                 <span class="kv-value">{{ formatUptime(systemInfo.uptime_hours) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 网络信息（新增） -->
+          <div class="card" v-if="systemInfo.network && (systemInfo.network.ip_address || systemInfo.network.mac_address)">
+            <div class="card-header">
+              <span class="card-title">网络信息</span>
+              <Icon name="wifi" :size="13" :stroke-width="1.75" />
+            </div>
+            <div class="card-body">
+              <div class="kv-row" v-if="systemInfo.network.ip_address">
+                <span class="kv-label">IP 地址</span>
+                <span class="kv-value mono">{{ systemInfo.network.ip_address }}</span>
+              </div>
+              <div class="kv-row" v-if="systemInfo.network.mac_address">
+                <span class="kv-label">MAC 地址</span>
+                <span class="kv-value mono">{{ systemInfo.network.mac_address }}</span>
+              </div>
+              <div class="kv-row" v-if="systemInfo.network.adapter_name">
+                <span class="kv-label">适配器</span>
+                <span class="kv-value">{{ systemInfo.network.adapter_name }}</span>
               </div>
             </div>
           </div>
@@ -114,129 +145,177 @@
           </div>
         </div>
 
-        <!-- 右列：硬件信息（内存/CPU/主板/显卡） -->
+        <!-- 中列：CPU + 主板 -->
         <div class="col">
-          <div class="card">
-            <div class="card-header" @click="showHardware = !showHardware" style="cursor:pointer;user-select:none">
-              <span class="card-title">硬件信息</span>
-              <Icon :name="showHardware ? 'chevron-down' : 'chevron-right'" :size="14" :stroke-width="2" />
+          <!-- CPU 硬件 -->
+          <div class="card" v-if="hardwareInfo && hardwareInfo.cpu">
+            <div class="card-header" @click="hwCpu = !hwCpu" style="cursor:pointer;user-select:none">
+              <span class="card-title">处理器 CPU</span>
+              <Icon :name="hwCpu ? 'chevron-down' : 'chevron-right'" :size="14" :stroke-width="2" />
             </div>
-
-            <div class="card-body" v-if="showHardware && hardwareInfo">
-              <!-- 内存条（用户重点需求） -->
-              <div class="hw-block" v-if="hardwareInfo.memory_sticks && hardwareInfo.memory_sticks.length">
-                <div class="hw-block-head">
-                  <Icon name="memory-stick" :size="13" />
-                  <span class="hw-block-title">内存条</span>
-                  <span class="tag tag-info">{{ hardwareInfo.memory_sticks.length }} 条</span>
-                </div>
-                <table class="hw-table">
-                  <thead>
-                    <tr>
-                      <th>插槽</th>
-                      <th>厂商</th>
-                      <th>容量</th>
-                      <th>频率</th>
-                      <th>类型</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(stick, idx) in hardwareInfo.memory_sticks" :key="idx">
-                      <td class="mono">{{ stick.bank_label || stick.device_locator || '-' }}</td>
-                      <td>{{ stick.manufacturer || '-' }}</td>
-                      <td class="mono">{{ stick.capacity_gb }} GB</td>
-                      <td class="mono">{{ stick.speed_mhz }} MHz</td>
-                      <td><span class="tag tag-neutral" v-if="stick.memory_type">{{ stick.memory_type }}</span><span v-else class="text-muted">-</span></td>
-                    </tr>
-                  </tbody>
-                </table>
-                <div class="hw-meta" v-if="hardwareInfo.memory_sticks.length">
-                  总容量 <span class="mono text-secondary">{{ totalMemoryGB }} GB</span>
-                  · 规格
-                  <span class="mono text-secondary">{{ hardwareInfo.memory_sticks[0]?.form_factor || '-' }}</span>
-                </div>
+            <div class="card-body" v-if="hwCpu">
+              <div class="kv-row">
+                <span class="kv-label">型号</span>
+                <span class="kv-value">{{ hardwareInfo.cpu.name }}</span>
               </div>
+              <div class="kv-row">
+                <span class="kv-label">厂商</span>
+                <span class="kv-value">{{ hardwareInfo.cpu.manufacturer }}</span>
+              </div>
+              <div class="kv-row">
+                <span class="kv-label">插槽</span>
+                <span class="kv-value mono">{{ hardwareInfo.cpu.socket || '-' }}</span>
+              </div>
+              <div class="kv-row">
+                <span class="kv-label">核心 / 线程</span>
+                <span class="kv-value mono">{{ hardwareInfo.cpu.cores }} / {{ hardwareInfo.cpu.logical_cores }}</span>
+              </div>
+              <div class="kv-row">
+                <span class="kv-label">最大频率</span>
+                <span class="kv-value mono">{{ hardwareInfo.cpu.max_clock_mhz }} MHz</span>
+              </div>
+              <div class="kv-row" v-if="hardwareInfo.cpu.current_clock_mhz">
+                <span class="kv-label">当前频率</span>
+                <span class="kv-value mono">{{ hardwareInfo.cpu.current_clock_mhz }} MHz</span>
+              </div>
+              <div class="kv-row">
+                <span class="kv-label">L2 / L3 缓存</span>
+                <span class="kv-value mono">{{ formatCache(hardwareInfo.cpu.l2_cache_kb) }} / {{ formatCache(hardwareInfo.cpu.l3_cache_kb) }}</span>
+              </div>
+              <div class="kv-row" v-if="hardwareInfo.cpu.voltage">
+                <span class="kv-label">电压</span>
+                <span class="kv-value mono">{{ hardwareInfo.cpu.voltage }} V</span>
+              </div>
+            </div>
+          </div>
 
-              <!-- CPU -->
-              <div class="hw-block" v-if="hardwareInfo.cpu">
-                <div class="hw-block-head">
-                  <Icon name="cpu" :size="13" />
-                  <span class="hw-block-title">处理器</span>
-                </div>
-                <div class="kv-row">
-                  <span class="kv-label">型号</span>
-                  <span class="kv-value">{{ hardwareInfo.cpu.name }}</span>
+          <!-- 主板 -->
+          <div class="card" v-if="hardwareInfo && hardwareInfo.motherboard">
+            <div class="card-header" @click="hwMb = !hwMb" style="cursor:pointer;user-select:none">
+              <span class="card-title">主板</span>
+              <Icon :name="hwMb ? 'chevron-down' : 'chevron-right'" :size="14" :stroke-width="2" />
+            </div>
+            <div class="card-body" v-if="hwMb">
+              <div class="kv-row">
+                <span class="kv-label">厂商</span>
+                <span class="kv-value">{{ hardwareInfo.motherboard.manufacturer }}</span>
+              </div>
+              <div class="kv-row">
+                <span class="kv-label">产品</span>
+                <span class="kv-value">{{ hardwareInfo.motherboard.product }}</span>
+              </div>
+              <div class="kv-row" v-if="hardwareInfo.motherboard.version">
+                <span class="kv-label">版本</span>
+                <span class="kv-value mono">{{ hardwareInfo.motherboard.version }}</span>
+              </div>
+              <div class="kv-row" v-if="hardwareInfo.motherboard.serial">
+                <span class="kv-label">序列号</span>
+                <span class="kv-value mono">{{ hardwareInfo.motherboard.serial }}</span>
+              </div>
+              <div class="kv-row">
+                <span class="kv-label">BIOS 版本</span>
+                <span class="kv-value mono">{{ hardwareInfo.motherboard.bios_version }}</span>
+              </div>
+              <div class="kv-row" v-if="hardwareInfo.motherboard.bios_date">
+                <span class="kv-label">BIOS 日期</span>
+                <span class="kv-value mono">{{ hardwareInfo.motherboard.bios_date }}</span>
+              </div>
+              <div class="kv-row" v-if="hardwareInfo.motherboard.bios_manufacturer">
+                <span class="kv-label">BIOS 厂商</span>
+                <span class="kv-value">{{ hardwareInfo.motherboard.bios_manufacturer }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右列：内存条 + 显卡 -->
+        <div class="col">
+          <!-- 内存条 -->
+          <div class="card" v-if="hardwareInfo && hardwareInfo.memory_sticks && hardwareInfo.memory_sticks.length">
+            <div class="card-header" @click="hwMem = !hwMem" style="cursor:pointer;user-select:none">
+              <span class="card-title">内存条</span>
+              <span class="tag tag-info">{{ hardwareInfo.memory_sticks.length }} 条 · {{ totalMemoryGB }} GB</span>
+              <Icon :name="hwMem ? 'chevron-down' : 'chevron-right'" :size="14" :stroke-width="2" />
+            </div>
+            <div class="card-body" v-if="hwMem">
+              <div class="mem-stick" v-for="(stick, idx) in hardwareInfo.memory_sticks" :key="idx">
+                <div class="mem-stick-head">
+                  <Icon name="memory-stick" :size="12" />
+                  <span class="mem-stick-label">{{ stick.bank_label || stick.device_locator || `插槽 ${idx+1}` }}</span>
+                  <span class="tag tag-neutral" v-if="stick.memory_type">{{ stick.memory_type }}</span>
                 </div>
                 <div class="kv-row">
                   <span class="kv-label">厂商</span>
-                  <span class="kv-value">{{ hardwareInfo.cpu.manufacturer }}</span>
+                  <span class="kv-value">{{ stick.manufacturer || '-' }}</span>
                 </div>
                 <div class="kv-row">
-                  <span class="kv-label">核心 / 线程</span>
-                  <span class="kv-value mono">{{ hardwareInfo.cpu.cores }} / {{ hardwareInfo.cpu.logical_cores }}</span>
+                  <span class="kv-label">容量</span>
+                  <span class="kv-value mono">{{ stick.capacity_gb }} GB</span>
                 </div>
                 <div class="kv-row">
-                  <span class="kv-label">最大频率</span>
-                  <span class="kv-value mono">{{ hardwareInfo.cpu.max_clock_mhz }} MHz</span>
+                  <span class="kv-label">标称频率</span>
+                  <span class="kv-value mono">{{ stick.speed_mhz }} MHz</span>
                 </div>
-                <div class="kv-row">
-                  <span class="kv-label">L2 / L3 缓存</span>
-                  <span class="kv-value mono">{{ hardwareInfo.cpu.l2_cache || '-' }} / {{ hardwareInfo.cpu.l3_cache || '-' }}</span>
+                <div class="kv-row" v-if="stick.configured_speed_mhz">
+                  <span class="kv-label">实际频率</span>
+                  <span class="kv-value mono">{{ stick.configured_speed_mhz }} MHz</span>
+                </div>
+                <div class="kv-row" v-if="stick.form_factor">
+                  <span class="kv-label">规格</span>
+                  <span class="kv-value">{{ stick.form_factor }}</span>
+                </div>
+                <div class="kv-row" v-if="stick.part_number">
+                  <span class="kv-label">型号</span>
+                  <span class="kv-value mono">{{ stick.part_number }}</span>
+                </div>
+                <div class="kv-row" v-if="stick.serial_number">
+                  <span class="kv-label">序列号</span>
+                  <span class="kv-value mono">{{ stick.serial_number }}</span>
                 </div>
               </div>
+            </div>
+          </div>
 
-              <!-- 主板 -->
-              <div class="hw-block" v-if="hardwareInfo.motherboard">
-                <div class="hw-block-head">
-                  <Icon name="motherboard" :size="13" />
-                  <span class="hw-block-title">主板</span>
+          <!-- 显卡（支持多张） -->
+          <div class="card" v-if="hardwareInfo && hardwareInfo.gpus && hardwareInfo.gpus.length">
+            <div class="card-header" @click="hwGpu = !hwGpu" style="cursor:pointer;user-select:none">
+              <span class="card-title">显卡 {{ hardwareInfo.gpus.length > 1 ? `(${hardwareInfo.gpus.length})` : '' }}</span>
+              <Icon :name="hwGpu ? 'chevron-down' : 'chevron-right'" :size="14" :stroke-width="2" />
+            </div>
+            <div class="card-body" v-if="hwGpu">
+              <div class="gpu-block" v-for="(gpu, idx) in hardwareInfo.gpus" :key="idx">
+                <div class="gpu-block-head">
+                  <Icon name="monitor" :size="12" />
+                  <span class="gpu-block-name">{{ gpu.name }}</span>
                 </div>
                 <div class="kv-row">
                   <span class="kv-label">厂商</span>
-                  <span class="kv-value">{{ hardwareInfo.motherboard.manufacturer }}</span>
-                </div>
-                <div class="kv-row">
-                  <span class="kv-label">产品</span>
-                  <span class="kv-value">{{ hardwareInfo.motherboard.product }}</span>
-                </div>
-                <div class="kv-row">
-                  <span class="kv-label">BIOS</span>
-                  <span class="kv-value mono">{{ hardwareInfo.motherboard.bios_version }}</span>
-                </div>
-                <div class="kv-row">
-                  <span class="kv-label">BIOS 日期</span>
-                  <span class="kv-value mono">{{ hardwareInfo.motherboard.bios_date || '-' }}</span>
-                </div>
-              </div>
-
-              <!-- GPU -->
-              <div class="hw-block" v-if="hardwareInfo.gpu">
-                <div class="hw-block-head">
-                  <Icon name="monitor" :size="13" />
-                  <span class="hw-block-title">显卡</span>
-                </div>
-                <div class="kv-row">
-                  <span class="kv-label">型号</span>
-                  <span class="kv-value">{{ hardwareInfo.gpu.name }}</span>
+                  <span class="kv-value">{{ gpu.manufacturer || '-' }}</span>
                 </div>
                 <div class="kv-row">
                   <span class="kv-label">显存</span>
-                  <span class="kv-value mono">{{ hardwareInfo.gpu.adapter_ram_gb }} GB</span>
+                  <span class="kv-value mono">{{ gpu.adapter_ram_gb }} GB</span>
                 </div>
-                <div class="kv-row">
+                <div class="kv-row" v-if="gpu.video_processor">
+                  <span class="kv-label">处理器</span>
+                  <span class="kv-value">{{ gpu.video_processor }}</span>
+                </div>
+                <div class="kv-row" v-if="gpu.driver_version">
                   <span class="kv-label">驱动版本</span>
-                  <span class="kv-value mono">{{ hardwareInfo.gpu.driver_version }}</span>
+                  <span class="kv-value mono">{{ gpu.driver_version }}</span>
+                </div>
+                <div class="kv-row" v-if="gpu.driver_date">
+                  <span class="kv-label">驱动日期</span>
+                  <span class="kv-value mono">{{ gpu.driver_date }}</span>
                 </div>
               </div>
-
-              <p class="hw-empty" v-if="!hardwareInfo.cpu && !hardwareInfo.motherboard && !hardwareInfo.gpu && !(hardwareInfo.memory_sticks && hardwareInfo.memory_sticks.length)">
-                暂无硬件详细信息
-              </p>
-            </div>
-            <div class="card-body" v-else-if="!hardwareInfo">
-              <p class="hw-empty">硬件信息获取失败</p>
             </div>
           </div>
+
+          <p class="hw-empty" v-if="hardwareInfo && !hardwareInfo.cpu && !hardwareInfo.motherboard && !(hardwareInfo.gpus && hardwareInfo.gpus.length) && !(hardwareInfo.memory_sticks && hardwareInfo.memory_sticks.length)">
+            暂无硬件详细信息
+          </p>
+          <p class="hw-empty" v-if="!hardwareInfo">硬件信息获取失败</p>
         </div>
       </div>
     </template>
@@ -260,10 +339,15 @@ const systemInfo = ref({
   hostname: "",
   uptime_hours: 0,
   boot_time: "",
+  network: { ip_address: "", mac_address: "", adapter_name: "" },
+  battery: null,
 });
 
 const hardwareInfo = ref(null);
-const showHardware = ref(true);
+const hwCpu = ref(true);
+const hwMb = ref(true);
+const hwMem = ref(true);
+const hwGpu = ref(true);
 
 const totalMemoryGB = computed(() => {
   if (!hardwareInfo.value?.memory_sticks) return 0;
@@ -277,11 +361,24 @@ function getBarClass(percent) {
   return "low";
 }
 
+function getBatteryBarClass(battery) {
+  if (battery.is_charging) return "normal";
+  if (battery.percent < 20) return "high";
+  if (battery.percent < 50) return "medium";
+  return "normal";
+}
+
 function formatUptime(hours) {
   const days = Math.floor(hours / 24);
   const h = Math.floor(hours % 24);
   if (days > 0) return `${days}天 ${h}小时`;
   return `${h}小时`;
+}
+
+function formatCache(kb) {
+  if (!kb) return "-";
+  if (kb >= 1024) return `${(kb / 1024).toFixed(1)} MB`;
+  return `${kb} KB`;
 }
 
 async function refresh() {
@@ -325,7 +422,7 @@ onMounted(refresh);
   font-size: 12px;
 }
 
-/* 实时负载 */
+/* 实时负载仪表盘 */
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -338,7 +435,13 @@ onMounted(refresh);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 12px 13px;
+  border-left: 3px solid var(--accent);
 }
+
+.metric-cpu { border-left-color: var(--info); }
+.metric-mem { border-left-color: var(--accent); }
+.metric-disk { border-left-color: var(--warning); }
+.metric-battery { border-left-color: var(--success); }
 
 .metric-head {
   display: flex;
@@ -386,10 +489,10 @@ onMounted(refresh);
   margin-top: 1px;
 }
 
-/* 两列 */
-.two-col {
+/* 三列布局 */
+.three-col {
   display: grid;
-  grid-template-columns: 1fr 1.2fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 12px;
 }
 
@@ -426,59 +529,56 @@ onMounted(refresh);
   color: var(--text-primary);
 }
 
-/* 硬件信息 */
-.hw-block {
-  padding: 14px 0;
+/* 内存条 */
+.mem-stick {
+  padding: 10px 0;
   border-top: 1px solid var(--border);
 }
 
-.hw-block:first-child {
+.mem-stick:first-child {
   padding-top: 0;
   border-top: none;
 }
 
-.hw-block-head {
+.mem-stick-head {
   display: flex;
   align-items: center;
   gap: 7px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   color: var(--text-secondary);
 }
 
-.hw-block-title {
-  font-size: 12px;
+.mem-stick-label {
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--text-primary);
   flex: 1;
 }
 
-.hw-table {
-  width: 100%;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
+/* GPU 块 */
+.gpu-block {
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.gpu-block:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+
+.gpu-block-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   margin-bottom: 8px;
+  color: var(--text-secondary);
 }
 
-.hw-table th {
-  padding: 6px 10px;
-  font-size: 9.5px;
-  background: var(--bg-elevated);
-}
-
-.hw-table td {
-  padding: 6px 10px;
+.gpu-block-name {
   font-size: 11.5px;
-  border-bottom: 1px solid var(--border);
-}
-
-.hw-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.hw-meta {
-  font-size: 11px;
-  color: var(--text-muted);
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
 }
 
 .hw-empty {
@@ -488,8 +588,14 @@ onMounted(refresh);
   font-size: 12px;
 }
 
-@media (max-width: 900px) {
-  .two-col {
+@media (max-width: 1200px) {
+  .three-col {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 800px) {
+  .three-col {
     grid-template-columns: 1fr;
   }
 }

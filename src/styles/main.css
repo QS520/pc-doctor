@@ -56,6 +56,94 @@
     monospace;
 }
 
+/* ===== 浅色主题覆盖 ===== */
+html[data-theme="light"] {
+  --bg-base: #f3f5f8;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f8fafc;
+  --bg-hover: #eef1f5;
+  --bg-input: #ffffff;
+
+  --text-primary: #0d1117;
+  --text-secondary: #424a57;
+  --text-muted: #6b7280;
+  --text-faint: #9ca3af;
+
+  --border: #e5e7eb;
+  --border-light: #d1d5db;
+  --border-focus: #9ca3af;
+
+  --accent: #0d9488;
+  --accent-hover: #0f766e;
+  --accent-dim: rgba(13, 148, 136, 0.1);
+  --accent-glow: rgba(13, 148, 136, 0.2);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.12);
+}
+
+/* ===== 强调色主题变体 ===== */
+html[data-accent="blue"] {
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-dim: rgba(59, 130, 246, 0.12);
+  --accent-glow: rgba(59, 130, 246, 0.25);
+}
+html[data-accent="blue"][data-theme="light"] {
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-dim: rgba(37, 99, 235, 0.1);
+}
+
+html[data-accent="purple"] {
+  --accent: #a855f7;
+  --accent-hover: #9333ea;
+  --accent-dim: rgba(168, 85, 247, 0.12);
+  --accent-glow: rgba(168, 85, 247, 0.25);
+}
+html[data-accent="purple"][data-theme="light"] {
+  --accent: #9333ea;
+  --accent-hover: #7e22ce;
+  --accent-dim: rgba(147, 51, 234, 0.1);
+}
+
+html[data-accent="green"] {
+  --accent: #22c55e;
+  --accent-hover: #16a34a;
+  --accent-dim: rgba(34, 197, 94, 0.12);
+  --accent-glow: rgba(34, 197, 94, 0.25);
+}
+html[data-accent="green"][data-theme="light"] {
+  --accent: #16a34a;
+  --accent-hover: #15803d;
+  --accent-dim: rgba(22, 163, 74, 0.1);
+}
+
+html[data-accent="orange"] {
+  --accent: #f97316;
+  --accent-hover: #ea580c;
+  --accent-dim: rgba(249, 115, 22, 0.12);
+  --accent-glow: rgba(249, 115, 22, 0.25);
+}
+html[data-accent="orange"][data-theme="light"] {
+  --accent: #ea580c;
+  --accent-hover: #c2410c;
+  --accent-dim: rgba(234, 88, 12, 0.1);
+}
+
+html[data-accent="pink"] {
+  --accent: #ec4899;
+  --accent-hover: #db2777;
+  --accent-dim: rgba(236, 72, 153, 0.12);
+  --accent-glow: rgba(236, 72, 153, 0.25);
+}
+html[data-accent="pink"][data-theme="light"] {
+  --accent: #db2777;
+  --accent-hover: #be185d;
+  --accent-dim: rgba(219, 39, 119, 0.1);
+}
+
 html,
 body {
   height: 100%;

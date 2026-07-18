@@ -33,6 +33,33 @@
       </div>
 
       <div class="sidebar-foot">
+        <!-- 主题切换 -->
+        <div class="theme-switcher">
+          <button
+            :class="['theme-btn', { active: themeMode === 'dark' }]"
+            title="深色主题"
+            @click="setTheme('dark')"
+          >
+            <Icon name="moon" :size="13" :stroke-width="2" />
+          </button>
+          <button
+            :class="['theme-btn', { active: themeMode === 'light' }]"
+            title="浅色主题"
+            @click="setTheme('light')"
+          >
+            <Icon name="sun" :size="13" :stroke-width="2" />
+          </button>
+          <div class="theme-divider"></div>
+          <button
+            v-for="color in accentColors"
+            :key="color.id"
+            :class="['accent-btn', { active: accentColor === color.id }]"
+            :style="{ background: color.preview }"
+            :title="color.label"
+            @click="setAccent(color.id)"
+          ></button>
+        </div>
+
         <div class="perm-status" v-if="permissionChecked">
           <span :class="['dot', isAdmin ? 'dot-success' : 'dot-warning']"></span>
           <span class="perm-text">{{ isAdmin ? '管理员权限' : '需要提权' }}</span>
@@ -114,6 +141,46 @@ const navGroups = [
 
 const activeView = ref("dashboard");
 
+// ===== 主题管理 =====
+const themeMode = ref("dark");
+const accentColor = ref("teal");
+
+const accentColors = [
+  { id: "teal", label: "青色", preview: "#2dd4bf" },
+  { id: "blue", label: "蓝色", preview: "#3b82f6" },
+  { id: "purple", label: "紫色", preview: "#a855f7" },
+  { id: "green", label: "绿色", preview: "#22c55e" },
+  { id: "orange", label: "橙色", preview: "#f97316" },
+  { id: "pink", label: "粉色", preview: "#ec4899" },
+];
+
+function setTheme(mode) {
+  themeMode.value = mode;
+  if (mode === "light") {
+    document.documentElement.setAttribute("data-theme", "light");
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+  }
+  localStorage.setItem("pc-doctor-theme", mode);
+}
+
+function setAccent(color) {
+  accentColor.value = color;
+  if (color === "teal") {
+    document.documentElement.removeAttribute("data-accent");
+  } else {
+    document.documentElement.setAttribute("data-accent", color);
+  }
+  localStorage.setItem("pc-doctor-accent", color);
+}
+
+function loadTheme() {
+  const savedTheme = localStorage.getItem("pc-doctor-theme");
+  const savedAccent = localStorage.getItem("pc-doctor-accent");
+  if (savedTheme) setTheme(savedTheme);
+  if (savedAccent) setAccent(savedAccent);
+}
+
 const componentMap = {
   dashboard: Dashboard,
   cleanup: DiskCleanup,
@@ -162,7 +229,10 @@ async function requestElevation() {
   }
 }
 
-onMounted(checkPermission);
+onMounted(() => {
+  loadTheme();
+  checkPermission();
+});
 
 function handleNavigate(view) {
   activeView.value = view;
@@ -274,6 +344,65 @@ function handleNavigate(view) {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* 主题切换器 */
+.theme-switcher {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 4px;
+}
+
+.theme-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  color: var(--text-muted);
+  transition: all 0.15s ease;
+}
+
+.theme-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.theme-btn.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.theme-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  margin: 0 3px;
+}
+
+.accent-btn {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.accent-btn:hover {
+  transform: scale(1.15);
+}
+
+.accent-btn.active {
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--bg-surface);
 }
 
 .perm-status {
