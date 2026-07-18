@@ -163,6 +163,7 @@
 import { ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
+import { useScanLogStore } from "../stores/scanLog";
 
 const loading = ref(false);
 const hasLoaded = ref(false);
@@ -171,6 +172,7 @@ const categoryFilter = ref("全部");
 const searchKeyword = ref("");
 const busy = ref("");
 const feedback = ref(null);
+const scanLog = useScanLogStore();
 
 const filteredServices = computed(() => {
   let list = services.value;
@@ -191,11 +193,53 @@ const filteredServices = computed(() => {
 async function loadServices() {
   loading.value = true;
   feedback.value = null;
+  scanLog.startTask("系统服务加载", "services");
+  let ok = true;
+
+  // ===== 预步骤日志（invoke 前展示加载流程） =====
+  scanLog.pushPhases([
+    "连接服务控制管理器 (SCM)...",
+    { msg: "枚举系统中所有已注册 Windows 服务", level: "info" },
+    "查询每项服务的运行状态与启动类型",
+    { msg: "归类并评估可安全禁用的服务", level: "warning" },
+  ]);
+
   try {
     services.value = await invoke("get_services");
+    const list = services.value;
+
+    // ===== 结果详情报告（服务统计） =====
+    scanLog.pushSeparator("服务统计");
+    const running = list.filter((s) => s.status === "运行中").length;
+    const stopped = list.filter((s) => s.status === "已停止").length;
+    const disabled = list.filter((s) => s.start_type === "已禁用").length;
+    const auto = list.filter((s) => s.start_type === "自动").length;
+    const safe = list.filter((s) => s.is_safe_to_disable).length;
+    scanLog.pushLog(`检测到 ${list.length} 个系统服务`, "success");
+    scanLog.pushDetail("运行中", `${running} 个`, "success");
+    scanLog.pushDetail("已停止", `${stopped} 个`, "dim");
+    scanLog.pushDetail("启动类型为自动", `${auto} 个`, "info");
+    scanLog.pushDetail("已禁用", `${disabled} 个`, "warning");
+    scanLog.pushDetail("可安全禁用", `${safe} 个`, "info");
+
+    // 分类分布
+    const catMap = {};
+    list.forEach((s) => {
+      const cat = s.category || "其他";
+      catMap[cat] = (catMap[cat] || 0) + 1;
+    });
+    scanLog.pushSeparator("分类分布");
+    Object.entries(catMap).forEach(([c, n]) => {
+      scanLog.pushDetail(c, `${n} 个`, "dim");
+    });
+
+    scanLog.complete(`系统服务加载完成，共 ${list.length} 个服务`);
   } catch (e) {
     console.error("Failed to load services:", e);
     feedback.value = { success: false, message: "加载服务列表失败: " + e };
+    scanLog.pushLog("失败: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   loading.value = false;
   hasLoaded.value = true;

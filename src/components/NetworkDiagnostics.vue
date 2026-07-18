@@ -246,6 +246,7 @@
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
+import { useScanLogStore } from "../stores/scanLog";
 
 const loadingAdapters = ref(false);
 const hasLoaded = ref(false);
@@ -263,15 +264,48 @@ const traceHost = ref("8.8.8.8");
 const tracing = ref(false);
 const traceHops = ref([]);
 const traceDone = ref(false);
+const scanLog = useScanLogStore();
 
 async function loadAdapters() {
   loadingAdapters.value = true;
+  scanLog.startTask("网络适配器扫描", "network");
+  let ok = true;
+
+  // ===== 预步骤日志（invoke 前展示扫描流程） =====
+  scanLog.pushPhases([
+    "初始化网络接口枚举器...",
+    { msg: "读取网卡适配器信息 (IP / 网关 / DNS)", level: "info" },
+    { msg: "检测链路连接状态与速率", level: "warning" },
+  ]);
+
   try {
     const info = await invoke("get_network_info");
     adapters.value = info.adapters || [];
+
+    // ===== 结果详情报告（网络适配器） =====
+    scanLog.pushSeparator("网络适配器");
+    scanLog.pushLog(`检测到 ${adapters.value.length} 个网络适配器`, "success");
+    if (adapters.value.length === 0) {
+      scanLog.pushDetail("结果", "未检测到网络适配器", "warning");
+    } else {
+      adapters.value.forEach((a, i) => {
+        scanLog.pushDetail(
+          `${i + 1}. ${a.name}`,
+          `${a.status} · ${a.link_speed_mbps} Mbps`,
+          a.status === "已连接" ? "success" : "warning"
+        );
+        scanLog.pushDetail("  IP", a.ip_address || "-", "dim");
+        scanLog.pushDetail("  网关", a.gateway || "-", "dim");
+        scanLog.pushDetail("  DNS", (a.dns_servers && a.dns_servers.join(", ")) || "-", "dim");
+      });
+    }
+    scanLog.complete(`网络适配器扫描完成，共 ${adapters.value.length} 个`);
   } catch (e) {
     console.error("Failed to load network info:", e);
     adapters.value = [];
+    scanLog.pushLog("失败: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   loadingAdapters.value = false;
   hasLoaded.value = true;
@@ -279,13 +313,48 @@ async function loadAdapters() {
 
 async function runPing() {
   if (!pingHost.value.trim()) return;
+  const host = pingHost.value.trim();
   pinging.value = true;
   pingResult.value = null;
+  scanLog.startTask("Ping 测试", "network");
+  let ok = true;
+
+  // ===== 预步骤日志（invoke 前展示测试流程） =====
+  scanLog.pushPhases([
+    `解析目标 ${host} ...`,
+    { msg: "构造 ICMP 回显请求包", level: "info" },
+    { msg: "发送探测包并等待回显应答...", level: "warning" },
+  ]);
+
   try {
-    pingResult.value = await invoke("ping_test", { host: pingHost.value.trim() });
+    pingResult.value = await invoke("ping_test", { host: host });
+
+    // ===== 结果详情报告（Ping 结果） =====
+    const r = pingResult.value;
+    scanLog.pushSeparator("Ping 结果");
+    scanLog.pushDetail("目标主机", r.host, "info");
+    scanLog.pushDetail(
+      "发送 / 接收",
+      `${r.packets_sent} / ${r.packets_received} 包`,
+      r.success ? "success" : "error"
+    );
+    scanLog.pushDetail(
+      "丢包率",
+      `${r.loss_percent.toFixed(1)}%`,
+      r.loss_percent >= 100 ? "error" : r.loss_percent > 0 ? "warning" : "success"
+    );
+    scanLog.pushDetail("最小延迟", `${r.min_ms.toFixed(1)} ms`, "dim");
+    scanLog.pushDetail(
+      "平均延迟",
+      `${r.avg_ms.toFixed(1)} ms`,
+      r.avg_ms > 100 ? "warning" : "success"
+    );
+    scanLog.pushDetail("最大延迟", `${r.max_ms.toFixed(1)} ms`, "dim");
+
+    scanLog.complete(`Ping 测试完成：${host} 丢包率 ${r.loss_percent.toFixed(1)}%`);
   } catch (e) {
     pingResult.value = {
-      host: pingHost.value,
+      host,
       success: false,
       packets_sent: 0,
       packets_received: 0,
@@ -295,39 +364,114 @@ async function runPing() {
       max_ms: 0,
       raw_output: "Ping 执行失败: " + e,
     };
+    scanLog.pushLog("失败: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   pinging.value = false;
 }
 
 async function runDns() {
   if (!dnsDomain.value.trim()) return;
+  const domain = dnsDomain.value.trim();
   dnsing.value = true;
   dnsResult.value = null;
+  scanLog.startTask("DNS 解析测试", "network");
+  let ok = true;
+
+  // ===== 预步骤日志（invoke 前展示解析流程） =====
+  scanLog.pushPhases([
+    `准备解析域名 ${domain} ...`,
+    { msg: "向 DNS 服务器发送查询请求", level: "info" },
+    { msg: "等待 DNS 应答并校验记录...", level: "warning" },
+  ]);
+
   try {
-    dnsResult.value = await invoke("dns_test", { domain: dnsDomain.value.trim() });
+    dnsResult.value = await invoke("dns_test", { domain });
+
+    // ===== 结果详情报告（DNS 解析结果） =====
+    const r = dnsResult.value;
+    scanLog.pushSeparator("DNS 解析结果");
+    scanLog.pushDetail("域名", r.domain, "info");
+    scanLog.pushDetail("解析耗时", `${r.resolve_time_ms.toFixed(0)} ms`, "dim");
+    scanLog.pushDetail("解析状态", r.success ? "解析成功" : "解析失败", r.success ? "success" : "error");
+    if (r.dns_server) scanLog.pushDetail("DNS 服务器", r.dns_server, "dim");
+    if (r.resolved_ips && r.resolved_ips.length > 0) {
+      scanLog.pushLog(`解析到 ${r.resolved_ips.length} 个 IP 地址`, "success");
+      r.resolved_ips.slice(0, 5).forEach((ip, i) => scanLog.pushDetail(`  IP ${i + 1}`, ip, "dim"));
+      if (r.resolved_ips.length > 5) {
+        scanLog.pushDetail("...", `还有 ${r.resolved_ips.length - 5} 个未显示`, "dim");
+      }
+    } else if (r.success) {
+      scanLog.pushDetail("解析 IP", "无返回记录", "warning");
+    }
+
+    scanLog.complete(`DNS 解析测试完成：${domain}`);
   } catch (e) {
     dnsResult.value = {
-      domain: dnsDomain.value,
+      domain,
       dns_server: "",
       resolve_time_ms: 0,
       resolved_ips: [],
       success: false,
     };
     console.error("DNS test failed:", e);
+    scanLog.pushLog("失败: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   dnsing.value = false;
 }
 
 async function runTrace() {
   if (!traceHost.value.trim()) return;
+  const host = traceHost.value.trim();
   tracing.value = true;
   traceDone.value = false;
   traceHops.value = [];
+  scanLog.startTask("路由追踪", "network");
+  let ok = true;
+
+  // ===== 预步骤日志（invoke 前展示追踪流程） =====
+  scanLog.pushPhases([
+    `开始追踪到 ${host} 的路由...`,
+    { msg: "逐跳增加 TTL 并发送探测包", level: "info" },
+    { msg: "记录每一跳的往返延迟（可能耗时较长）...", level: "warning" },
+  ]);
+
   try {
-    traceHops.value = await invoke("traceroute", { host: traceHost.value.trim() });
+    traceHops.value = await invoke("traceroute", { host });
+
+    // ===== 结果详情报告（路由追踪结果） =====
+    const hops = traceHops.value;
+    scanLog.pushSeparator("路由追踪结果");
+    scanLog.pushLog(`路由追踪完成，共 ${hops.length} 跳`, "success");
+    if (hops.length === 0) {
+      scanLog.pushDetail("结果", "未获取到路由信息", "warning");
+    } else {
+      hops.slice(0, 8).forEach((h) => {
+        const t1 = h.times_ms && h.times_ms[0] != null ? h.times_ms[0].toFixed(1) + "ms" : "-";
+        const t2 = h.times_ms && h.times_ms[1] != null ? h.times_ms[1].toFixed(1) + "ms" : "-";
+        const t3 = h.times_ms && h.times_ms[2] != null ? h.times_ms[2].toFixed(1) + "ms" : "-";
+        const timedOut = !h.times_ms || h.times_ms.every((t) => t === null || t === 0);
+        scanLog.pushDetail(
+          `第 ${h.hop} 跳`,
+          `${h.address || "请求超时"} · [${t1} / ${t2} / ${t3}]`,
+          timedOut ? "warning" : "dim"
+        );
+      });
+      if (hops.length > 8) {
+        scanLog.pushDetail("...", `还有 ${hops.length - 8} 跳未显示`, "dim");
+      }
+    }
+
+    scanLog.complete(`路由追踪完成：${host}，共 ${hops.length} 跳`);
   } catch (e) {
     console.error("Traceroute failed:", e);
     traceHops.value = [];
+    scanLog.pushLog("失败: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   tracing.value = false;
   traceDone.value = true;

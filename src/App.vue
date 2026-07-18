@@ -4,14 +4,11 @@
     <div class="titlebar" data-tauri-drag-region>
       <div class="titlebar-brand" data-tauri-drag-region>
         <div class="brand-mark">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2v8" />
-            <path d="m4.93 10.93 1.41 1.41" />
-            <path d="M2 18h2" />
-            <path d="M20 18h2" />
-            <path d="m19.07 10.93-1.41 1.41" />
-            <path d="M22 22H2" />
-            <path d="m8 22 4-10 4 10" />
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 8v8" />
+            <path d="M8 12h8" />
+            <rect x="4" y="8" width="16" height="12" rx="2" />
+            <path d="M9 8V6a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
           </svg>
         </div>
         <span class="titlebar-name">PC 急诊箱</span>
@@ -173,12 +170,13 @@ const themeMode = ref("dark");
 const accentColor = ref("teal");
 
 const accentColors = [
-  { id: "teal", label: "青色", preview: "#2dd4bf" },
-  { id: "blue", label: "蓝色", preview: "#3b82f6" },
-  { id: "purple", label: "紫色", preview: "#a855f7" },
-  { id: "green", label: "绿色", preview: "#22c55e" },
-  { id: "orange", label: "橙色", preview: "#f97316" },
-  { id: "pink", label: "粉色", preview: "#ec4899" },
+  { id: "teal", label: "青绿", preview: "#2dd4bf" },
+  { id: "blue", label: "钴蓝", preview: "#3b82f6" },
+  { id: "purple", label: "紫罗兰", preview: "#a855f7" },
+  { id: "green", label: "草绿", preview: "#22c55e" },
+  { id: "orange", label: "暖黄", preview: "#f59e0b" },
+  { id: "pink", label: "樱粉", preview: "#ec4899" },
+  { id: "gray", label: "钛灰", preview: "#64748b" },
 ];
 
 function setTheme(mode) {
@@ -473,24 +471,26 @@ function onPanelEnter() {
 .theme-switcher {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
   background: var(--bg-base);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   margin-bottom: 4px;
 }
 
 .theme-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 4px;
 }
 
 .theme-row-label {
   font-size: 10px;
   color: var(--text-muted);
-  width: 24px;
+  width: 28px;
   flex-shrink: 0;
   text-align: center;
 }
@@ -524,8 +524,8 @@ function onPanelEnter() {
 }
 
 .accent-btn {
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
   border-radius: 50%;
   border: 2px solid transparent;
   cursor: pointer;

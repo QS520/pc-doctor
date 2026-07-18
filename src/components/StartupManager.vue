@@ -121,14 +121,28 @@
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
+import { useScanLogStore } from "../stores/scanLog";
 
 const loading = ref(false);
 const hasLoaded = ref(false);
 const startupItems = ref([]);
 const bootDuration = ref(null);
+const scanLog = useScanLogStore();
 
 async function refresh() {
   loading.value = true;
+  scanLog.startTask("开机启动项扫描", "startup");
+  let ok = true;
+
+  // ===== 预步骤日志（invoke 前展示扫描流程） =====
+  scanLog.pushPhases([
+    "启动注册表枚举器...",
+    { msg: "扫描 HKLM/HKCU 的 Run / RunOnce 键值", level: "info" },
+    "检测计划任务中的开机启动项",
+    "查询 Windows 服务的启动类型",
+    { msg: "分析上次开机引导耗时...", level: "warning" },
+  ]);
+
   try {
     const [items, boot] = await Promise.all([
       invoke("get_startup_items"),
@@ -136,8 +150,43 @@ async function refresh() {
     ]);
     startupItems.value = items;
     bootDuration.value = boot;
+
+    // ===== 结果详情报告（启动项清单） =====
+    scanLog.pushSeparator("启动项清单");
+    const enabledCount = items.filter((i) => i.enabled).length;
+    const disabledCount = items.length - enabledCount;
+    scanLog.pushLog(`共检测到 ${items.length} 个启动项`, "success");
+    scanLog.pushDetail("已启用", `${enabledCount} 个`, enabledCount > 0 ? "warning" : "success");
+    scanLog.pushDetail("已禁用", `${disabledCount} 个`, "success");
+
+    const list = items.slice(0, 8);
+    list.forEach((it, i) => {
+      scanLog.pushDetail(
+        `${i + 1}. ${it.name}`,
+        `${it.enabled ? "启用" : "禁用"} · 来源: ${it.source}`,
+        it.enabled ? "warning" : "dim"
+      );
+    });
+    if (items.length > 8) {
+      scanLog.pushDetail("...", `还有 ${items.length - 8} 个未显示`, "dim");
+    }
+
+    if (boot) {
+      scanLog.pushSeparator("开机信息");
+      scanLog.pushDetail("上次开机时间", boot.last_boot_time || "-", "dim");
+      scanLog.pushDetail(
+        "本次开机耗时",
+        boot.boot_duration_display,
+        boot.boot_duration_seconds > 60 ? "warning" : "success"
+      );
+    }
+
+    scanLog.complete(`启动项扫描完成，共 ${startupItems.value.length} 项，开机耗时 ${bootDuration.value ? bootDuration.value.boot_duration_display : "-"}`);
   } catch (e) {
     console.error("Failed to load startup items:", e);
+    scanLog.pushLog("失败: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   loading.value = false;
   hasLoaded.value = true;

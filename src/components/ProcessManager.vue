@@ -106,18 +106,68 @@
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
+import { useScanLogStore } from "../stores/scanLog";
 
 const loading = ref(false);
 const hasLoaded = ref(false);
 const processes = ref([]);
 const sortBy = ref("cpu");
+const scanLog = useScanLogStore();
 
 async function loadProcesses() {
   loading.value = true;
+  scanLog.startTask("进程列表加载", "process");
+  let ok = true;
+
+  const sortLabel =
+    sortBy.value === "cpu" ? "CPU 使用率" :
+    sortBy.value === "memory" ? "内存占用" : "进程名称";
+
+  // ===== 预步骤日志（invoke 前展示扫描流程） =====
+  scanLog.pushPhases([
+    `快照系统进程列表 (排序方式: ${sortLabel})...`,
+    { msg: "解析进程元数据 (PID / CPU / 内存 / 状态)", level: "info" },
+    "计算资源占用并按规则排序...",
+    { msg: "准备渲染进程表格", level: "warning" },
+  ]);
+
   try {
     processes.value = await invoke("get_processes", { sortBy: sortBy.value });
+    const list = processes.value;
+
+    // ===== 结果详情报告 =====
+    scanLog.pushSeparator("进程概览");
+    const totalCpu = list.reduce((s, p) => s + (p.cpu_usage || 0), 0);
+    const totalMem = list.reduce((s, p) => s + (p.memory_mb || 0), 0);
+    scanLog.pushLog(`检测到 ${list.length} 个进程`, "success");
+    scanLog.pushDetail("CPU 总占用", `${totalCpu.toFixed(1)}%`, totalCpu > 80 ? "warning" : "success");
+    scanLog.pushDetail(
+      "内存总占用",
+      `${(totalMem / 1024).toFixed(2)} GB`,
+      totalMem > 80 * 1024 ? "warning" : "success"
+    );
+    scanLog.pushDetail("排序方式", sortLabel, "dim");
+
+    const top = [...list].sort((a, b) => b.cpu_usage - a.cpu_usage).slice(0, 5);
+    scanLog.pushSeparator("CPU 占用 TOP 5");
+    if (top.length === 0 || totalCpu === 0) {
+      scanLog.pushDetail("结果", "无显著 CPU 占用", "success");
+    } else {
+      top.forEach((p, i) => {
+        scanLog.pushDetail(
+          `${i + 1}. ${p.name} (PID:${p.pid})`,
+          `CPU ${p.cpu_usage.toFixed(1)}% · 内存 ${p.memory_mb.toFixed(0)} MB`,
+          p.cpu_usage > 50 ? "warning" : "dim"
+        );
+      });
+    }
+
+    scanLog.complete(`进程列表加载完成，共 ${list.length} 个进程`);
   } catch (e) {
     console.error("Failed to load processes:", e);
+    scanLog.pushLog("失败: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   loading.value = false;
   hasLoaded.value = true;

@@ -46,3 +46,6 @@ browser_snapshots/
 
 # WorkBuddy local workspace memory (not project source)
 .workbuddy/
+
+# AI-generated icon design drafts (not project source)
+generated-images/

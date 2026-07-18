@@ -30,7 +30,7 @@ export const useScanLogStore = defineStore("scanLog", () => {
     pushLog(`[INIT] ${title}`, "system");
   }
 
-  /** Push a log line */
+  /** Push a single log line */
   function pushLog(message, level = "info") {
     // level: info | success | warning | error | system | dim
     const now = new Date();
@@ -41,6 +41,32 @@ export const useScanLogStore = defineStore("scanLog", () => {
       ":" +
       String(now.getSeconds()).padStart(2, "0");
     logs.value.push({ ts, message, level });
+  }
+
+  /**
+   * Push multiple phases in batch.
+   * Each item is either a string (default level="dim" or specified) or { msg, level }.
+   * Usage: pushPhases(["step1", {msg:"step2", level:"info"}, ...])
+   */
+  function pushPhases(items, defaultLevel = "dim") {
+    items.forEach((item) => {
+      if (typeof item === "string") {
+        pushLog(item, defaultLevel);
+      } else {
+        pushLog(item.msg, item.level || defaultLevel);
+      }
+    });
+  }
+
+  /** Push a visual separator / section header */
+  function pushSeparator(title = "") {
+    const label = title ? `[ ${title} ]` : "---";
+    pushLog(label, "system");
+  }
+
+  /** Push a key-value detail line (indented) */
+  function pushDetail(key, value, level = "dim") {
+    pushLog(`  ${key}: ${value}`, level);
   }
 
   /** Mark task as completed */
@@ -92,6 +118,9 @@ export const useScanLogStore = defineStore("scanLog", () => {
     logCount,
     startTask,
     pushLog,
+    pushPhases,
+    pushSeparator,
+    pushDetail,
     complete,
     fail,
     dismiss,

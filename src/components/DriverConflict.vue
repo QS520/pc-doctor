@@ -315,12 +315,14 @@
 import { ref, computed, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
+import { useScanLogStore } from "../stores/scanLog";
 
 const loading = ref(false);
 const hasLoaded = ref(false);
 const result = ref(null);
 const isAdmin = ref(true);
 const exportLoading = ref(false);
+const scanLog = useScanLogStore();
 
 const hasResult = computed(() => result.value !== null);
 
@@ -454,11 +456,98 @@ const conflictGroups = computed(() => {
 async function scan() {
   loading.value = true;
   result.value = null;
+  scanLog.startTask("驱动冲突诊断", "drvconflict");
+  let ok = true;
+
+  // ===== 预步骤日志（invoke 前展示扫描流程） =====
+  scanLog.pushPhases([
+    "初始化诊断引擎...",
+    { msg: "枚举系统中已安装的设备驱动程序", level: "info" },
+    "准备检查驱动数字签名状态",
+    "加载驱动版本兼容性数据库...",
+    { msg: "正在执行深度诊断扫描...", level: "warning" },
+  ]);
+
   try {
     result.value = await invoke("diagnose_driver_conflicts");
+    const r = result.value;
+
+    // ===== 结果详情报告（用返回数据展开） =====
+    scanLog.pushSeparator("诊断结果摘要");
+
+    // 冲突明细
+    scanLog.pushLog(
+      `检测到驱动冲突: ${r.conflicts.length} 项`,
+      r.conflicts.length > 0 ? "warning" : "success"
+    );
+    if (r.conflicts.length > 0) {
+      const typeMap = {};
+      r.conflicts.forEach((c) => {
+        typeMap[c.conflict_type] = (typeMap[c.conflict_type] || 0) + 1;
+      });
+      Object.entries(typeMap).forEach(([t, n]) => {
+        scanLog.pushDetail(t, `${n} 个设备受影响`, "warning");
+      });
+    }
+
+    // 版本冲突
+    if (r.version_conflicts.length > 0) {
+      scanLog.pushLog(
+        `版本不匹配: ${r.version_conflicts.length} 组`,
+        "warning"
+      );
+      r.version_conflicts.slice(0, 3).forEach((vc) => {
+        scanLog.pushDetail(vc.driver_name || "未知驱动", vc.description || "-", "dim");
+      });
+      if (r.version_conflicts.length > 3) {
+        scanLog.pushDetail("...", `还有 ${r.version_conflicts.length - 3} 组`, "dim");
+      }
+    } else {
+      scanLog.pushLog("版本一致性检查通过", "success");
+    }
+
+    // 加载失败
+    scanLog.pushLog(
+      `驱动加载失败事件: ${r.load_failures.length} 条`,
+      r.load_failures.length > 0 ? "error" : "success"
+    );
+
+    // 未签名驱动
+    scanLog.pushLog(
+      `未签名驱动: ${r.unsigned_drivers.length} 个`,
+      r.unsigned_drivers.length > 0 ? "warning" : "success"
+    );
+    if (r.unsigned_drivers.length > 0) {
+      r.unsigned_drivers.slice(0, 4).forEach((u) => {
+        scanLog.pushDetail(u.device_name || u.driver_name || "?", u.driver_version || "未知版本", "dim");
+      });
+      if (r.unsigned_drivers.length > 4) {
+        scanLog.pushDetail("...", `还有 ${r.unsigned_drivers.length - 4} 个`, "dim");
+      }
+    }
+
+    // 推荐操作
+    if (r.recommendations && r.recommendations.length > 0) {
+      scanLog.pushSeparator("推荐操作");
+      r.recommendations.slice(0, 5).forEach((rec, i) => {
+        scanLog.pushDetail(String(i + 1), rec, "info");
+      });
+    }
+
+    // 总体状态
+    scanLog.pushSeparator();
+    scanLog.pushLog(`总体状态: ${r.overall_status.toUpperCase()}`,
+      r.overall_status === "healthy" ? "success" :
+      r.overall_status === "critical" ? "error" : "warning"
+    );
+
+    scanLog.complete(`驱动冲突诊断完成 — 状态: ${r.overall_status}, 共分析 ${r.conflicts.length + r.unsigned_drivers.length + r.version_conflicts.length} 个问题项`);
   } catch (e) {
     console.error("Driver conflict diagnosis failed:", e);
     result.value = null;
+    scanLog.pushLog("诊断引擎异常: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   loading.value = false;
   hasLoaded.value = true;

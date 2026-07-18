@@ -361,12 +361,14 @@
 import { ref, computed, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
+import { useScanLogStore } from "../stores/scanLog";
 
 const loading = ref(false);
 const hasLoaded = ref(false);
 const result = ref(null);
 const isAdmin = ref(true);
 const exportLoading = ref(false);
+const scanLog = useScanLogStore();
 
 const hasResult = computed(() => result.value !== null);
 
@@ -596,11 +598,54 @@ const activationCardClass = computed(() => {
 async function analyze() {
   loading.value = true;
   result.value = null;
+  scanLog.startTask("系统损坏分析", "syshealth");
+  let ok = true;
+  scanLog.pushPhases([
+    "校验系统关键文件完整性 (SFC 离线检测)...",
+    { msg: "扫描注册表一致性", level: "info" },
+    "检查引导配置 (BCD) 与启动项...",
+    "验证 Windows 更新安装状态...",
+    "检测系统激活状态...",
+    { msg: "正在生成综合诊断报告...", level: "warning" },
+  ]);
   try {
     result.value = await invoke("diagnose_system_health");
+    const r = result.value;
+    scanLog.pushSeparator("损坏分析报告");
+    const corrupted = r.corrupted_files ? r.corrupted_files.length : 0;
+    const regIssues = r.registry_issues ? r.registry_issues.length : 0;
+    const bootErrs = r.boot_config && r.boot_config.boot_errors ? r.boot_config.boot_errors.length : 0;
+    const failedUpd = r.failed_updates ? r.failed_updates.length : 0;
+    scanLog.pushLog(`损坏系统文件: ${corrupted} 个`, corrupted > 0 ? "error" : "success");
+    scanLog.pushLog(`注册表问题: ${regIssues} 个`, regIssues > 0 ? "warning" : "success");
+    scanLog.pushLog(`引导配置错误: ${bootErrs} 个`, bootErrs > 0 ? "warning" : "success");
+    scanLog.pushLog(`更新安装失败: ${failedUpd} 个`, failedUpd > 0 ? "warning" : "success");
+    if (r.activation) {
+      scanLog.pushLog(`系统激活状态: ${r.activation.is_activated ? "已激活" : "未激活"}`,
+        r.activation.is_activated ? "success" : "error");
+    }
+    if (r.corrupted_files && r.corrupted_files.length > 0) {
+      scanLog.pushSeparator("损坏文件明细");
+      r.corrupted_files.slice(0, 5).forEach((f) => {
+        scanLog.pushDetail(f.path || f.name || "未知文件", f.issue || (f.severity || ""), "error");
+      });
+      if (r.corrupted_files.length > 5) scanLog.pushDetail("...", `还有 ${r.corrupted_files.length - 5} 个文件`, "dim");
+    }
+    if (r.recommendations && r.recommendations.length > 0) {
+      scanLog.pushSeparator("建议操作");
+      r.recommendations.slice(0, 4).forEach((rec, i) => scanLog.pushDetail(String(i + 1), rec, "info"));
+    }
+    scanLog.pushSeparator();
+    scanLog.pushLog(`总体状态: ${r.overall_status.toUpperCase()}`,
+      r.overall_status === "healthy" ? "success" :
+      r.overall_status === "critical" ? "error" : "warning");
+    scanLog.complete(`系统损坏分析完成 — 状态: ${r.overall_status}`);
   } catch (e) {
     console.error("System health diagnosis failed:", e);
     result.value = null;
+    scanLog.pushLog("诊断异常: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   loading.value = false;
   hasLoaded.value = true;

@@ -159,32 +159,50 @@
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
+import { useScanLogStore } from "../stores/scanLog";
 
 const analyzing = ref(false);
 const hasLoaded = ref(false);
 const loadingErrors = ref(false);
 const result = ref(null);
 const systemErrors = ref([]);
+const scanLog = useScanLogStore();
 
 async function analyze() {
   analyzing.value = true;
+  scanLog.startTask("蓝屏 dump 分析", "bsod");
+  let ok = true;
   try {
+    scanLog.pushLog("分析蓝屏 dump 与崩溃记录...", "info");
     result.value = await invoke("analyze_bsod");
+    scanLog.pushLog(`分析完成：共 ${result.value.crash_count} 次蓝屏`, "success");
   } catch (e) {
     console.error("Analysis failed:", e);
+    scanLog.pushLog("失败: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   analyzing.value = false;
   hasLoaded.value = true;
+  if (ok) scanLog.complete(`蓝屏 dump 分析完成，共 ${result.value.crash_count} 次蓝屏记录`);
 }
 
 async function loadErrors() {
   loadingErrors.value = true;
+  scanLog.startTask("系统错误日志", "bsod");
+  let ok = true;
   try {
+    scanLog.pushLog("读取最近 50 条系统错误事件...", "info");
     systemErrors.value = await invoke("get_system_errors", { limit: 50 });
+    scanLog.pushLog(`读取到 ${systemErrors.value.length} 条错误事件`, "success");
   } catch (e) {
     console.error("Failed to load errors:", e);
+    scanLog.pushLog("失败: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   loadingErrors.value = false;
+  if (ok) scanLog.complete(`系统错误日志加载完成，共 ${systemErrors.value.length} 条`);
 }
 </script>
 

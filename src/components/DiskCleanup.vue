@@ -136,6 +136,9 @@
 import { ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
+import { useScanLogStore } from "../stores/scanLog";
+
+const scanLog = useScanLogStore();
 
 const scanning = ref(false);
 const hasLoaded = ref(false);
@@ -162,14 +165,53 @@ const selectedSize = computed(() => {
 async function scan() {
   scanning.value = true;
   cleanResult.value = null;
+  scanLog.startTask("C盘垃圾扫描", "cleanup");
+  let ok = true;
+
+  // ===== 预步骤日志（invoke 前展示扫描流程） =====
+  scanLog.pushPhases([
+    "初始化垃圾扫描引擎...",
+    { msg: "定位系统目录: AppData/Temp、Windows/Temp、回收站、预读取文件、浏览器缓存", level: "info" },
+    "枚举临时文件与缓存路径...",
+    "分析 Windows 组件存储 (WinSxS) 冗余与更新备份",
+    { msg: "正在执行全盘垃圾统计...", level: "warning" },
+  ]);
+
   try {
     scanResult.value = await invoke("scan_junk_files");
+    const r = scanResult.value;
+
     // 默认选中所有安全项
-    selectedIds.value = scanResult.value.categories
+    selectedIds.value = r.categories
       .filter(c => c.safe_to_delete && c.size_mb > 0)
       .map(c => c.id);
+
+    const totalMB = r.total_size_mb.toFixed(1);
+    const catCount = r.categories.length;
+
+    // ===== 结果详情报告（垃圾分类统计） =====
+    scanLog.pushSeparator("垃圾分类统计");
+    let safeCount = 0, unsafeCount = 0;
+    r.categories.forEach((c) => {
+      if (c.safe_to_delete) safeCount++; else unsafeCount++;
+      const lvl = c.size_mb > 0 ? "info" : "dim";
+      scanLog.pushDetail(c.name, `${c.size_mb.toFixed(1)} MB · ${c.file_count} 个文件`, lvl);
+    });
+
+    scanLog.pushLog(`扫描完成: 共 ${catCount} 类垃圾`, "success");
+    scanLog.pushDetail("可安全清理", `${safeCount} 类`, "success");
+    if (unsafeCount > 0) {
+      scanLog.pushDetail("需确认项", `${unsafeCount} 类 (如 Windows.old)`, "warning");
+    }
+
+    scanLog.pushSeparator();
+    scanLog.pushLog(`可释放空间总计: ${totalMB} MB`, "info");
+    scanLog.complete(`扫描完成 — 发现 ${catCount} 类垃圾，可释放 ${totalMB} MB`);
   } catch (e) {
     console.error("Scan failed:", e);
+    scanLog.pushLog("扫描异常: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   scanning.value = false;
   hasLoaded.value = true;
@@ -188,11 +230,50 @@ function toggleAll(e) {
 async function clean() {
   cleaning.value = true;
   cleanResult.value = null;
+  scanLog.startTask("C盘垃圾清理", "cleanup");
+  let ok = true;
+
+  // ===== 预步骤日志（invoke 前展示清理流程） =====
+  scanLog.pushPhases([
+    "校验待清理项参数...",
+    { msg: `已选中 ${selectedIds.value.length} 个分类等待清理`, level: "info" },
+    "锁定目标文件句柄，防止误删系统文件",
+    "准备安全删除队列 (占用中文件将自动跳过)...",
+  ]);
+
   try {
     cleanResult.value = await invoke("clean_junk_files", { categoryIds: selectedIds.value });
+    const cr = cleanResult.value;
+
+    scanLog.pushSeparator("清理结果");
+    if (cr.success) {
+      scanLog.pushDetail("已删除文件", `${cr.deleted_files} 个`, "success");
+      scanLog.pushDetail("释放空间", `${cr.freed_mb.toFixed(1)} MB`, "success");
+      if (cr.skipped > 0) {
+        scanLog.pushDetail("跳过文件", `${cr.skipped} 个 (被占用)`, "warning");
+      } else {
+        scanLog.pushDetail("跳过文件", "0 个", "success");
+      }
+      if (cr.errors && cr.errors.length > 0) {
+        scanLog.pushLog(`清理过程中有 ${cr.errors.length} 个文件处理失败`, "warning");
+        cr.errors.slice(0, 5).forEach((err, i) => scanLog.pushDetail(String(i + 1), err, "dim"));
+        if (cr.errors.length > 5) {
+          scanLog.pushDetail("...", `还有 ${cr.errors.length - 5} 个错误未列出`, "dim");
+        }
+      }
+      scanLog.pushSeparator();
+      scanLog.complete(`清理完成 — 释放 ${cr.freed_mb.toFixed(1)} MB，删除 ${cr.deleted_files} 个文件`);
+    } else {
+      scanLog.pushLog("清理未完成 (部分项处理失败)", "error");
+      if (cr.errors && cr.errors.length > 0) {
+        cr.errors.slice(0, 5).forEach((err, i) => scanLog.pushDetail(String(i + 1), err, "dim"));
+      }
+      scanLog.fail("清理未完成");
+    }
     // 重新扫描
     setTimeout(() => scan(), 1500);
   } catch (e) {
+    cleaning.value = false;
     cleanResult.value = {
       success: false,
       deleted_files: 0,
@@ -200,6 +281,9 @@ async function clean() {
       errors: [String(e)],
       skipped: 0,
     };
+    scanLog.pushLog("清理异常: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   cleaning.value = false;
 }

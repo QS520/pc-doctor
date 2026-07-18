@@ -299,6 +299,7 @@ async function refresh() {
 
 async function loadDrives() {
   loading.value = true;
+
   try {
     drives.value = await invoke("list_drives");
     view.value = "drives";
@@ -316,6 +317,7 @@ async function loadDrives() {
 
 async function loadDirectory(path) {
   loading.value = true;
+
   try {
     // 快速扫描：立即返回列表（文件大小即时，子目录大小为 0 待计算）
     currentResult.value = await invoke("scan_directory", { path });

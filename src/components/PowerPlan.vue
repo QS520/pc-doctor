@@ -223,6 +223,7 @@
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
+import { useScanLogStore } from "../stores/scanLog";
 
 const loading = ref(false);
 const hasLoaded = ref(false);
@@ -232,10 +233,19 @@ const busyGuid = ref("");
 const settingCpu = ref(false);
 const cpuMaxState = ref(100);
 const feedback = ref(null);
+const scanLog = useScanLogStore();
 
 async function loadAll() {
   loading.value = true;
   feedback.value = null;
+  scanLog.startTask("电源计划加载", "power");
+  let ok = true;
+  scanLog.pushPhases([
+    "查询电源管理子系统 (Power Policy)...",
+    { msg: "枚举所有可用电源方案", level: "info" },
+    "检测 CPU 降频状态与频率限制...",
+    "读取系统睡眠与休眠超时配置...",
+  ]);
   try {
     const [planList, throttleInfo] = await Promise.all([
       invoke("get_power_plans"),
@@ -246,12 +256,36 @@ async function loadAll() {
     if (throttleInfo) {
       cpuMaxState.value = throttleInfo.cpu_max_state_percent;
     }
+    scanLog.pushSeparator("电源方案列表");
+    const activePlan = (planList || []).find(p => p.is_active);
+    scanLog.pushLog(`发现电源方案: ${plans.value.length} 个`, "success");
+    (planList || []).forEach((p) => {
+      scanLog.pushDetail(p.name || p.guid || "未知方案",
+        p.is_active ? "● 当前激活" : "○ 未激活", p.is_active ? "success" : "dim");
+    });
+    if (throttleInfo) {
+      scanLog.pushSeparator("CPU 频率状态");
+      scanLog.pushDetail("当前电源方案", throttleInfo.current_power_plan || "-", "info");
+      scanLog.pushDetail("CPU 最大状态", `${throttleInfo.cpu_max_state_percent}%`,
+        throttleInfo.is_throttled ? "warning" : "success");
+      scanLog.pushDetail("CPU 最小状态", `${throttleInfo.cpu_min_state_percent}%`, "dim");
+      if (throttleInfo.is_throttled) {
+        scanLog.pushLog(`检测到 CPU 降频限制 (${throttleInfo.cpu_max_state_percent}%)，可能影响性能`, "warning");
+      } else {
+        scanLog.pushLog("CPU 未降频，性能模式正常", "success");
+      }
+    }
+    scanLog.complete(`电源计划加载完成，共 ${plans.value.length} 个方案${activePlan ? "，当前: " + activePlan.name : ""}`);
   } catch (e) {
     console.error("Failed to load power info:", e);
     feedback.value = { success: false, message: "加载电源信息失败: " + e };
+    scanLog.pushLog("失败: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   loading.value = false;
   hasLoaded.value = true;
+  if (ok) scanLog.complete(`电源计划加载完成，共 ${plans.value.length} 个方案`);
 }
 
 async function setPlan(plan) {

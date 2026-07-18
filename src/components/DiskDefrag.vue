@@ -132,19 +132,51 @@
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
+import { useScanLogStore } from "../stores/scanLog";
 
 const loading = ref(false);
 const hasLoaded = ref(false);
 const running = ref("");
 const drives = ref([]);
 const output = ref(null);
+const scanLog = useScanLogStore();
 
 async function analyze() {
   loading.value = true;
   drives.value = [];
   output.value = null;
+  scanLog.startTask("磁盘碎片分析", "defrag");
+  let ok = true;
+
+  // ===== 预步骤日志（invoke 前展示分析流程） =====
+  scanLog.pushPhases([
+    "初始化卷分析引擎...",
+    { msg: "读取各磁盘卷信息与文件系统结构", level: "info" },
+    "分析文件碎片分布与簇占用情况",
+    { msg: "计算每块磁盘的碎片率...", level: "warning" },
+  ]);
+
   try {
     drives.value = await invoke("analyze_defrag");
+
+    // ===== 结果详情报告（碎片分析结果） =====
+    scanLog.pushSeparator("碎片分析结果");
+    scanLog.pushLog(`分析完成，共 ${drives.value.length} 块磁盘`, "success");
+    drives.value.forEach((d) => {
+      if (d.is_ssd) {
+        scanLog.pushDetail(`${d.drive}: (${d.drive_type})`, "固态硬盘 · 建议执行 TRIM 优化", "info");
+      } else {
+        const lvl =
+          d.fragmentation_percent > 30 ? "error" :
+          d.fragmentation_percent > 10 ? "warning" : "success";
+        scanLog.pushDetail(
+          `${d.drive}: (${d.drive_type})`,
+          `碎片率 ${d.fragmentation_percent.toFixed(1)}% · 碎片文件 ${d.total_fragmented_files} 个`,
+          lvl
+        );
+      }
+    });
+    scanLog.complete(`碎片分析完成，共 ${drives.value.length} 块磁盘`);
   } catch (e) {
     console.error("Analyze defrag failed:", e);
     output.value = {
@@ -154,6 +186,9 @@ async function analyze() {
       error: String(e),
       duration_secs: 0,
     };
+    scanLog.pushLog("失败: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   loading.value = false;
   hasLoaded.value = true;
@@ -163,9 +198,33 @@ async function runDefrag(drive) {
   if (!confirm(`确定要对 ${drive.drive}: 盘进行碎片整理吗？\n整理期间磁盘性能可能下降，请勿中断。`)) return;
   running.value = drive.drive;
   output.value = null;
+  scanLog.startTask("碎片整理", "defrag");
+  let ok = true;
+
+  // ===== 预步骤日志（invoke 前展示整理流程） =====
+  scanLog.pushPhases([
+    `创建 ${drive.drive}: 盘整理计划...`,
+    { msg: `锁定卷 ${drive.drive}: 防止写入冲突`, level: "info" },
+    { msg: "开始文件碎片整理 (按簇重排，过程可能较长)", level: "warning" },
+  ]);
+
   try {
     const res = await invoke("run_defrag", { drive: drive.drive, optimizeSsd: false });
     output.value = { title: `${drive.drive}: 盘碎片整理`, ...res };
+
+    // ===== 结果详情报告 =====
+    scanLog.pushSeparator("整理结果");
+    scanLog.pushDetail("目标磁盘", `${drive.drive}: 盘 (${drive.drive_type})`, "info");
+    scanLog.pushDetail("执行结果", res.success ? "成功" : "失败", res.success ? "success" : "error");
+    if (res.duration_secs != null) {
+      scanLog.pushDetail("耗时", `${res.duration_secs} 秒`, "dim");
+    }
+    if (res.output) {
+      scanLog.pushLog("控制台输出摘要:", "info");
+      const snippet = res.output.length > 200 ? res.output.slice(0, 200) + "..." : res.output;
+      scanLog.pushDetail("输出", snippet, "dim");
+    }
+    scanLog.complete(`${drive.drive}: 盘碎片整理完成`);
   } catch (e) {
     output.value = {
       title: `${drive.drive}: 盘碎片整理`,
@@ -174,6 +233,9 @@ async function runDefrag(drive) {
       error: String(e),
       duration_secs: 0,
     };
+    scanLog.pushLog("失败: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   running.value = "";
   // 完成后重新分析
@@ -184,9 +246,33 @@ async function runTrim(drive) {
   if (!confirm(`确定要对所有 SSD 执行 TRIM 优化吗？`)) return;
   running.value = drive.drive;
   output.value = null;
+  scanLog.startTask("TRIM 优化", "defrag");
+  let ok = true;
+
+  // ===== 预步骤日志（invoke 前展示优化流程） =====
+  scanLog.pushPhases([
+    `定位固态硬盘 ${drive.drive}: ...`,
+    { msg: "枚举待优化的 SSD 卷", level: "info" },
+    { msg: "向 SSD 控制器发送 TRIM 指令回收空闲块", level: "warning" },
+  ]);
+
   try {
     const res = await invoke("run_trim_all");
     output.value = { title: "TRIM 优化", ...res };
+
+    // ===== 结果详情报告 =====
+    scanLog.pushSeparator("TRIM 结果");
+    scanLog.pushDetail("目标磁盘", `${drive.drive}: 盘 (${drive.drive_type})`, "info");
+    scanLog.pushDetail("执行结果", res.success ? "成功" : "失败", res.success ? "success" : "error");
+    if (res.duration_secs != null) {
+      scanLog.pushDetail("耗时", `${res.duration_secs} 秒`, "dim");
+    }
+    if (res.output) {
+      scanLog.pushLog("控制台输出摘要:", "info");
+      const snippet = res.output.length > 200 ? res.output.slice(0, 200) + "..." : res.output;
+      scanLog.pushDetail("输出", snippet, "dim");
+    }
+    scanLog.complete("TRIM 优化完成");
   } catch (e) {
     output.value = {
       title: "TRIM 优化",
@@ -195,6 +281,9 @@ async function runTrim(drive) {
       error: String(e),
       duration_secs: 0,
     };
+    scanLog.pushLog("失败: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   running.value = "";
   setTimeout(() => analyze(), 1500);

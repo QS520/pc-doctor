@@ -1,6 +1,6 @@
 <template>
   <Transition name="slide-panel">
-    <div v-if="store.visible" class="scan-log-panel" @keydown.enter="onEnter">
+    <div v-if="store.visible" ref="panelRef" class="scan-log-panel" @keydown.enter="onEnter">
       <!-- Panel Header -->
       <div class="panel-header">
         <div class="header-left">
@@ -40,17 +40,19 @@
         <span class="enter-hint">
           <kbd>Enter</kbd> 关闭面板
         </span>
+        <button class="close-btn" @click="onClose">点击此处关闭 ✕</button>
       </div>
     </div>
   </Transition>
 </template>
 
 <script setup>
-import { computed, ref, watch, nextTick } from "vue";
+import { computed, ref, watch, nextTick, onMounted, onUnmounted } from "vue";
 import { useScanLogStore } from "../stores/scanLog";
 
 const store = useScanLogStore();
 const logBodyRef = ref(null);
+const panelRef = ref(null);
 
 const dotClass = computed(() => ({
   "dot-run": store.status === "running",
@@ -84,6 +86,29 @@ function onEnter() {
     store.dismiss();
   }
 }
+
+// 鼠标左键点击「关闭」按钮
+function onClose() {
+  if (store.status === "done") {
+    store.dismiss();
+  }
+}
+
+// 鼠标左键点击面板外部区域也可关闭（仅加载完成时）
+function onGlobalClick(e) {
+  if (!store.visible || store.status !== "done") return;
+  if (panelRef.value && !panelRef.value.contains(e.target)) {
+    store.dismiss();
+  }
+}
+
+onMounted(() => {
+  document.addEventListener("mousedown", onGlobalClick);
+});
+
+onUnmounted(() => {
+  document.removeEventListener("mousedown", onGlobalClick);
+});
 </script>
 
 <style scoped>
@@ -287,6 +312,31 @@ function onEnter() {
   font-size: 10px;
   color: #00aa33;
   margin-right: 4px;
+}
+
+.close-btn {
+  display: block;
+  width: 100%;
+  margin-top: 7px;
+  padding: 6px 0;
+  background: #0a1510;
+  border: 1px solid #0f2a18;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 11px;
+  color: #00dd38;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.close-btn:hover {
+  background: #0f2a18;
+  color: #00ff66;
+}
+
+.close-btn:active {
+  transform: scale(0.98);
 }
 
 /* ===== Slide Transition ===== */

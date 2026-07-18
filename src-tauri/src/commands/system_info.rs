@@ -1,6 +1,7 @@
 use serde::Serialize;
 use sysinfo::System;
 use std::ffi::OsString;
+use crate::commands::boot_time;
 #[cfg(windows)]
 use std::os::windows::ffi::OsStringExt;
 
@@ -113,14 +114,20 @@ fn compute_system_info() -> SystemInfoResult {
     let os_version = System::os_version().unwrap_or_default();
     let os_build = System::long_os_version().unwrap_or_default();
     let hostname = System::host_name().unwrap_or_else(|| "Unknown".to_string());
-    let uptime_secs = System::uptime();
-    let uptime_hours = uptime_secs as f64 / 3600.0;
-
-    // 启动时间
-    let boot_timestamp = System::uptime();
+    // 启动时间（兼容快速启动：优先取事件日志里最近一次真实开机，回退到系统运行时长）
     let now = chrono::Local::now();
-    let boot_time = now - chrono::Duration::seconds(boot_timestamp as i64);
-    let boot_time_str = boot_time.format("%Y-%m-%d %H:%M:%S").to_string();
+    let (boot_time_str, uptime_secs) = match boot_time::last_boot_datetime() {
+        Some(dt) => {
+            let secs = (now - dt).num_seconds().max(0) as u64;
+            (dt.format("%Y-%m-%d %H:%M:%S").to_string(), secs)
+        }
+        None => {
+            let secs = System::uptime();
+            let boot_time = now - chrono::Duration::seconds(secs as i64);
+            (boot_time.format("%Y-%m-%d %H:%M:%S").to_string(), secs)
+        }
+    };
+    let uptime_hours = uptime_secs as f64 / 3600.0;
 
     SystemInfoResult {
         os_name,

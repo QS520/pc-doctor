@@ -213,19 +213,8 @@ pub async fn get_boot_duration() -> BootDuration {
     tokio::task::spawn_blocking(|| {
     #[cfg(windows)]
     {
-        // 使用 PowerShell 查询最近一次开机启动时间
-        let output = std::process::Command::new("powershell")
-            .args([
-                "-NoProfile",
-                "-Command",
-                "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; (Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime.ToString('yyyy-MM-dd HH:mm:ss')",
-            ])
-            .output();
-
-        let boot_time = match output {
-            Ok(o) => String::from_utf8_lossy(&o.stdout).trim().to_string(),
-            Err(_) => "未知".to_string(),
-        };
+        // 使用事件日志获取“上次真实开机时间”（兼容快速启动，详见 boot_time 模块）
+        let boot_time = crate::commands::boot_time::last_boot_time_string();
 
         // 获取开机时长: 从启动到用户登录的时间
         // 使用事件 ID 100 (Kernel-Boot) 获取启动性能信息
@@ -371,39 +360,57 @@ fn read_startup_folder_items(path: &str, source_name: &str) -> Vec<StartupItem> 
 fn read_scheduled_tasks() -> Vec<StartupItem> {
     let mut items = Vec::new();
 
-    let output = std::process::Command::new("schtasks")
-        .args(["/Query", "/FO", "CSV", "/V"])
+    // 只抓取触发器为 Logon / Boot 的计划任务，避免列出全部任务
+    let ps = r#"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+Get-ScheduledTask | Where-Object {
+    $_.State -ne 'Disabled' -and
+    ($_.Triggers | Where-Object { $_.TriggerType -eq 'Logon' -or $_.TriggerType -eq 'Boot' })
+} | ForEach-Object {
+    $action = $_.Actions | Select-Object -First 1
+    $cmd = if ($action.Execute -and $action.Arguments) { "$($action.Execute) $($action.Arguments)" }
+           elseif ($action.Execute) { $action.Execute }
+           else { "" }
+    [PSCustomObject]@{
+        FullPath = "$($_.TaskPath)$($_.TaskName)"
+        State    = $_.State
+        Command  = $cmd
+    }
+} | ConvertTo-Csv -NoTypeInformation
+"#;
+
+    let output = std::process::Command::new("powershell")
+        .args(["-NoProfile", "-Command", ps])
         .output();
 
     if let Ok(output) = output {
         let csv = String::from_utf8_lossy(&output.stdout);
         let lines: Vec<&str> = csv.lines().collect();
+        let mut seen = std::collections::HashSet::new();
 
         for line in lines.iter().skip(1) {
-            // 解析 CSV 行
             let fields: Vec<String> = parse_csv_line(line);
-            if fields.len() < 8 {
+            if fields.len() < 3 {
                 continue;
             }
 
-            let task_name = fields[0].trim_matches('"').to_string();
-            let status = fields[3].trim_matches('"').to_string();
+            let full_path = fields[0].trim_matches('"').to_string();
+            let status = fields[1].trim_matches('"').to_string();
+            let command = fields[2].trim_matches('"').to_string();
 
-            // 只显示正在运行或已准备就绪的任务
-            if status == "就绪" || status == "Ready" || status == "正在运行" || status == "Running" {
-                // 过滤掉系统任务
-                if task_name.starts_with("\\Microsoft\\") || task_name.starts_with("\\Google\\") {
-                    continue;
-                }
-
-                items.push(StartupItem {
-                    name: task_name,
-                    command: fields[7].trim_matches('"').to_string(),
-                    location: "计划任务".to_string(),
-                    enabled: status == "就绪" || status == "Ready" || status == "正在运行" || status == "Running",
-                    source: "计划任务".to_string(),
-                });
+            if full_path.is_empty() || seen.contains(&full_path) {
+                continue;
             }
+            seen.insert(full_path.clone());
+
+            let enabled = status == "Ready" || status == "Running" || status == "就绪" || status == "正在运行";
+
+            items.push(StartupItem {
+                name: full_path.clone(),
+                command,
+                location: "计划任务".to_string(),
+                enabled,
+                source: "计划任务".to_string(),
+            });
         }
     }
 

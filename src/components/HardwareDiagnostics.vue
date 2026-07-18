@@ -317,6 +317,7 @@
 import { ref, computed, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
+import { useScanLogStore } from "../stores/scanLog";
 
 const loading = ref(false);
 const hasLoaded = ref(false);
@@ -324,6 +325,7 @@ const report = ref(null);
 const showMemoryConfirm = ref(false);
 const isAdmin = ref(true);
 const exportLoading = ref(false);
+const scanLog = useScanLogStore();
 
 /* —— 顶部状态条 —— */
 const statusBarClass = computed(() => {
@@ -421,11 +423,62 @@ const batteryBarClass = computed(() => {
 /* —— 行为 —— */
 async function runDiagnosis() {
   loading.value = true;
+  scanLog.startTask("硬件故障诊断", "hwdiag");
+  let ok = true;
+  scanLog.pushPhases([
+    "初始化硬件检测套件...",
+    { msg: "采集 CPU 温度与负载数据", level: "info" },
+    "运行内存诊断与 ECC 校验...",
+    "分析磁盘 SMART 健康属性...",
+    "检测 GPU 与显存状态...",
+    { msg: "评估电池循环与容量衰减...", level: "warning" },
+  ]);
   try {
     report.value = await invoke("diagnose_hardware");
+    const r = report.value;
+    scanLog.pushSeparator("硬件诊断摘要");
+    const findings = r.findings || [];
+    scanLog.pushLog(`诊断发现: ${findings.length} 项`,
+      findings.length > 0 ? "warning" : "success");
+    if (r.memory_errors_detected) {
+      scanLog.pushLog("检测到内存错误 (ECC/可纠正)", "error");
+    } else {
+      scanLog.pushLog("内存检查通过，无错误", "success");
+    }
+    if (r.whea_errors && r.whea_errors.length > 0) {
+      scanLog.pushDetail("WHEA 硬件错误", `${r.whea_errors.length} 条`, "error");
+    }
+    if (r.smart_attributes && r.smart_attributes.length > 0) {
+      const smartBad = r.smart_attributes.filter(s => s.status && s.status !== "OK").length;
+      scanLog.pushDetail("磁盘 SMART 属性",
+        `${r.smart_attributes.length} 项，异常 ${smartBad} 项`, smartBad > 0 ? "warning" : "success");
+    }
+    if (r.battery) {
+      const hp = r.battery.health_percent != null ? r.battery.health_percent.toFixed(1) + "%" : "-";
+      scanLog.pushDetail("电池健康度", `${hp} · ${r.battery.status || "-"}`, "info");
+    }
+    if (findings.length > 0) {
+      scanLog.pushSeparator("问题发现");
+      findings.slice(0, 6).forEach((f) => {
+        const sev = (f.severity || "info").toLowerCase();
+        scanLog.pushDetail(f.category || "硬件",
+          f.message ? f.message.substring(0, 50) : (f.description || "-"),
+          sev === "critical" || sev === "error" ? "error" :
+          sev === "warning" ? "warning" : "info");
+      });
+      if (findings.length > 6) scanLog.pushDetail("...", `还有 ${findings.length - 6} 项发现`, "dim");
+    }
+    scanLog.pushSeparator();
+    scanLog.pushLog(`总体状态: ${r.overall_status.toUpperCase()}`,
+      r.overall_status === "healthy" ? "success" :
+      r.overall_status === "critical" ? "error" : "warning");
+    scanLog.complete(`硬件故障诊断完成 — 状态: ${r.overall_status}`);
   } catch (e) {
     console.error("Hardware diagnosis failed:", e);
     report.value = null;
+    scanLog.pushLog("诊断异常: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   loading.value = false;
   hasLoaded.value = true;

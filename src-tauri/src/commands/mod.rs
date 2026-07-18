@@ -1,4 +1,5 @@
 pub mod system_info;
+pub mod boot_time;
 pub mod disk_cleanup;
 pub mod startup_manager;
 pub mod bsod_analyzer;

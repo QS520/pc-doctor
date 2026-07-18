@@ -9,9 +9,9 @@
 
     <!-- 初始扫描提示 -->
     <div class="scan-prompt" v-if="!hasLoaded && !boosting">
-      <Icon name="search" :size="32" />
-      <p>点击下方按钮开始扫描</p>
-      <button class="btn btn-primary" @click="runBoost">开始检测</button>
+      <Icon name="rocket" :size="32" />
+      <p>点击下方按钮开始一键加速</p>
+      <button class="btn btn-primary" @click="runBoost">开始加速</button>
     </div>
 
     <!-- 加速入口 -->
@@ -146,12 +146,14 @@
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
+import { useScanLogStore } from "../stores/scanLog";
 
 const boosting = ref(false);
 const hasLoaded = ref(false);
 const result = ref(null);
 const error = ref("");
 const showConfirm = ref(false);
+const scanLog = useScanLogStore();
 
 function runBoost() {
   // 先弹二次确认
@@ -167,15 +169,55 @@ async function confirmBoost() {
   boosting.value = true;
   result.value = null;
   error.value = "";
+  scanLog.startTask("一键加速", "boost");
+  let ok = true;
+
+  // ===== 预步骤日志（invoke 前展示加速流程） =====
+  scanLog.pushPhases([
+    "评估当前内存压力...",
+    { msg: "扫描 CPU > 5% / 内存 > 500MB 的高占用进程", level: "info" },
+    "定位系统临时文件与浏览器缓存目录",
+    "准备释放操作 (结束进程 / 清理缓存 / 刷新 DNS)",
+    { msg: "即将执行一键加速...", level: "warning" },
+  ]);
+
   try {
     const res = await invoke("one_click_boost");
     result.value = res;
-    if (!res.success) {
+
+    // ===== 结果详情报告（加速结果） =====
+    scanLog.pushSeparator("加速结果");
+    scanLog.pushDetail("释放内存", `${res.freed_memory_gb.toFixed(2)} GB`, "success");
+    scanLog.pushDetail("清理临时文件", `${res.cleaned_temp_mb.toFixed(1)} MB`, "success");
+    scanLog.pushDetail("清理浏览器缓存", `${res.cleaned_cache_mb.toFixed(1)} MB`, "success");
+    scanLog.pushDetail(
+      "结束进程",
+      `${res.killed_processes} 个`,
+      res.killed_processes > 0 ? "warning" : "success"
+    );
+
+    if (res.details && res.details.length > 0) {
+      scanLog.pushSeparator("操作明细");
+      res.details.slice(0, 8).forEach((d, i) => scanLog.pushDetail(String(i + 1), d, "dim"));
+      if (res.details.length > 8) {
+        scanLog.pushDetail("...", `还有 ${res.details.length - 8} 条明细`, "dim");
+      }
+    }
+
+    scanLog.pushSeparator();
+    if (res.success) {
+      scanLog.pushLog("一键加速执行成功", "success");
+    } else {
+      scanLog.pushLog("加速未能完全完成，请查看详情", "warning");
       error.value = "加速未能完全完成，请查看详情。";
     }
+    scanLog.complete(`一键加速完成：释放 ${res.freed_memory_gb.toFixed(2)}GB 内存，清理 ${res.cleaned_temp_mb.toFixed(1)}MB 临时文件，结束 ${res.killed_processes} 个进程`);
   } catch (e) {
     error.value = String(e);
     console.error("One click boost failed:", e);
+    scanLog.pushLog("失败: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   boosting.value = false;
   hasLoaded.value = true;

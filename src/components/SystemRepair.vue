@@ -160,6 +160,7 @@
 import { ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
+import { useScanLogStore } from "../stores/scanLog";
 
 const running = ref("");
 const loading = ref(false);
@@ -168,6 +169,7 @@ const sfcResult = ref(null);
 const dismResult = ref(null);
 const chkdskResult = ref(null);
 const diskHealth = ref([]);
+const scanLog = useScanLogStore();
 
 const activeOutput = computed(() => {
   if (sfcResult.value) return { title: "SFC 输出", ...sfcResult.value };
@@ -179,10 +181,30 @@ const activeOutput = computed(() => {
 async function runSfc() {
   running.value = "sfc";
   sfcResult.value = null;
+  scanLog.startTask("SFC 系统文件修复", "sfc");
+  let ok = true;
+  scanLog.pushPhases([
+    "请求管理员权限 (需要 TrustedInstaller)...",
+    { msg: "扫描所有受保护的系统文件", level: "info" },
+    "验证文件哈希与组件存储一致性...",
+    { msg: "正在修复损坏的系统文件...", level: "warning" },
+  ]);
   try {
     sfcResult.value = await invoke("run_sfc");
+    const r = sfcResult.value;
+    scanLog.pushSeparator("SFC 执行结果");
+    scanLog.pushLog(`扫描完成（${r.success ? "成功" : "失败"}）`, r.success ? "success" : "error");
+    scanLog.pushDetail("耗时", `${r.duration_secs}s`, "info");
+    if (r.output) {
+      scanLog.pushDetail("摘要", r.output.substring(0, 120).replace(/\n/g, " "), "dim");
+    }
+    if (r.error) scanLog.pushLog(`错误信息: ${r.error}`, "error");
+    scanLog.complete(`SFC 系统文件检查完成，耗时 ${r.duration_secs}s`);
   } catch (e) {
     sfcResult.value = { success: false, output: "", error: String(e), duration_secs: 0 };
+    scanLog.pushLog("执行异常: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   running.value = "";
 }
@@ -190,10 +212,28 @@ async function runSfc() {
 async function runDism() {
   running.value = "dism";
   dismResult.value = null;
+  scanLog.startTask("DISM 组件修复", "dism");
+  let ok = true;
+  scanLog.pushPhases([
+    "检查 Windows 组件存储 (CBS)...",
+    { msg: "连接 Windows Update 源", level: "info" },
+    "扫描并修复受损的系统映像...",
+    { msg: "正在还原健康组件...", level: "warning" },
+  ]);
   try {
     dismResult.value = await invoke("run_dism");
+    const r = dismResult.value;
+    scanLog.pushSeparator("DISM 执行结果");
+    scanLog.pushLog(`修复完成（${r.success ? "成功" : "失败"}）`, r.success ? "success" : "error");
+    scanLog.pushDetail("耗时", `${r.duration_secs}s`, "info");
+    if (r.output) scanLog.pushDetail("摘要", r.output.substring(0, 120).replace(/\n/g, " "), "dim");
+    if (r.error) scanLog.pushLog(`错误信息: ${r.error}`, "error");
+    scanLog.complete(`DISM 组件修复完成，耗时 ${r.duration_secs}s`);
   } catch (e) {
     dismResult.value = { success: false, output: "", error: String(e), duration_secs: 0 };
+    scanLog.pushLog("执行异常: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   running.value = "";
 }
@@ -201,20 +241,65 @@ async function runDism() {
 async function runChkdsk() {
   running.value = "chkdsk";
   chkdskResult.value = null;
+  scanLog.startTask("CHKDSK 磁盘检查", "chkdsk");
+  let ok = true;
+  scanLog.pushPhases([
+    "锁定并分析卷 C: 文件系统...",
+    { msg: "扫描文件索引与目录结构", level: "info" },
+    "检测坏扇区与交叉链接...",
+    { msg: "正在离线扫描 (需要独占访问)...", level: "warning" },
+  ]);
   try {
     chkdskResult.value = await invoke("run_chkdsk", { drive: "C:" });
+    const r = chkdskResult.value;
+    scanLog.pushSeparator("CHKDSK 执行结果");
+    scanLog.pushLog(`磁盘检查完成（${r.success ? "成功" : "失败"}）`, r.success ? "success" : "error");
+    scanLog.pushDetail("耗时", `${r.duration_secs}s`, "info");
+    if (r.output) scanLog.pushDetail("摘要", r.output.substring(0, 120).replace(/\n/g, " "), "dim");
+    if (r.error) scanLog.pushLog(`错误信息: ${r.error}`, "error");
+    scanLog.complete(`CHKDSK 磁盘检查完成，耗时 ${r.duration_secs}s`);
   } catch (e) {
     chkdskResult.value = { success: false, output: "", error: String(e), duration_secs: 0 };
+    scanLog.pushLog("执行异常: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   running.value = "";
 }
 
 async function loadDiskHealth() {
   loading.value = true;
+  scanLog.startTask("磁盘健康检测", "diskhealth");
+  let ok = true;
+  scanLog.pushPhases([
+    "枚举物理磁盘设备...",
+    { msg: "读取 S.M.A.R.T 自检数据", level: "info" },
+    "分析坏道预测与温度曲线...",
+    { msg: "评估磁盘剩余寿命...", level: "warning" },
+  ]);
   try {
     diskHealth.value = await invoke("check_disk_health");
+    const disks = diskHealth.value || [];
+    scanLog.pushSeparator("磁盘健康报告");
+    scanLog.pushLog(`检测到 ${disks.length} 块磁盘`, "success");
+    disks.forEach((d) => {
+      const status = d.smart_ok ? "S.M.A.R.T 正常" : "S.M.A.R.T 异常";
+      scanLog.pushDetail(`${d.drive} · ${d.model || "未知型号"}`,
+        `${d.total_size_gb || "?"} GB · ${status}`,
+        d.smart_ok ? "success" : "error");
+    });
+    const bad = disks.filter(d => !d.smart_ok).length;
+    if (bad > 0) {
+      scanLog.pushLog(`警告: ${bad} 块磁盘存在健康风险，建议立即备份数据`, "error");
+    } else {
+      scanLog.pushLog("所有磁盘健康状态良好", "success");
+    }
+    scanLog.complete(`磁盘健康检测完成，共 ${disks.length} 块磁盘${bad > 0 ? `，${bad} 块异常` : ""}`);
   } catch (e) {
     console.error("Failed to check disk health:", e);
+    scanLog.pushLog("检测失败: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   loading.value = false;
   hasLoaded.value = true;

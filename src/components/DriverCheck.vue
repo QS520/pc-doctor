@@ -149,12 +149,14 @@
 import { ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
+import { useScanLogStore } from "../stores/scanLog";
 
 const loading = ref(false);
 const hasLoaded = ref(false);
 const result = ref(null);
 const filter = ref("all");
 const searchKeyword = ref("");
+const scanLog = useScanLogStore();
 
 const normalCount = computed(() => {
   if (!result.value) return 0;
@@ -200,11 +202,65 @@ const filteredDrivers = computed(() => {
 async function checkDrivers() {
   loading.value = true;
   result.value = null;
+  scanLog.startTask("驱动状态检查", "drivers");
+  let ok = true;
+
+  // ===== 预步骤日志（invoke 前展示检查流程） =====
+  scanLog.pushPhases([
+    "加载系统驱动程序库...",
+    { msg: "对比 WHQL 数字签名与版本数据库", level: "info" },
+    "检查驱动版本是否过时",
+    { msg: "扫描存在问题的设备驱动...", level: "warning" },
+  ]);
+
   try {
     result.value = await invoke("check_drivers");
+    const r = result.value;
+    const drivers = r.drivers;
+    const normal = drivers.filter((d) => d.status === "正常").length;
+    const expired = drivers.filter((d) => d.status === "可能过期").length;
+    const problem = drivers.filter((d) => d.status === "异常").length;
+
+    // ===== 结果详情报告（驱动统计） =====
+    scanLog.pushSeparator("驱动统计");
+    scanLog.pushLog(`驱动检查完成：共 ${r.total_drivers} 个驱动`, "success");
+    scanLog.pushDetail("正常", `${normal} 个`, "success");
+    scanLog.pushDetail("可能过期", `${expired} 个`, expired > 0 ? "warning" : "success");
+    scanLog.pushDetail("异常", `${problem} 个`, problem > 0 ? "error" : "success");
+
+    if (problem > 0) {
+      scanLog.pushSeparator("异常驱动");
+      drivers.filter((d) => d.status === "异常").slice(0, 5).forEach((d, i) => {
+        scanLog.pushDetail(`${i + 1}. ${d.device_name}`, `${d.manufacturer} · ${d.driver_version || "-"}`, "error");
+        if (d.problem_description) scanLog.pushDetail("  问题", d.problem_description, "dim");
+      });
+      if (problem > 5) scanLog.pushDetail("...", `还有 ${problem - 5} 个异常驱动`, "dim");
+    }
+
+    if (expired > 0) {
+      scanLog.pushSeparator("可能过期的驱动");
+      drivers.filter((d) => d.status === "可能过期").slice(0, 5).forEach((d, i) => {
+        scanLog.pushDetail(
+          `${i + 1}. ${d.device_name}`,
+          `${d.manufacturer} · 版本 ${d.driver_version || "-"} · ${d.driver_date || "-"}`,
+          "warning"
+        );
+      });
+      if (expired > 5) scanLog.pushDetail("...", `还有 ${expired - 5} 个过期驱动`, "dim");
+    }
+
+    scanLog.pushSeparator();
+    scanLog.pushLog(
+      `综合状态: ${problem > 0 ? "存在异常" : expired > 0 ? "部分过期" : "良好"}`,
+      problem > 0 ? "error" : expired > 0 ? "warning" : "success"
+    );
+    scanLog.complete(`驱动状态检查完成，共 ${r.total_drivers} 个驱动`);
   } catch (e) {
     console.error("Driver check failed:", e);
     result.value = null;
+    scanLog.pushLog("失败: " + String(e), "error");
+    scanLog.fail(String(e));
+    ok = false;
   }
   loading.value = false;
   hasLoaded.value = true;

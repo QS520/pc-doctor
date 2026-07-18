@@ -639,7 +639,7 @@ fn check_critical_files() -> Vec<CorruptedFile> {
         "system32\\sfc.exe",
         "explorer.exe",
         "regedit.exe",
-        "cmd.exe",
+        "system32\\cmd.exe",
         "notepad.exe",
     ];
 

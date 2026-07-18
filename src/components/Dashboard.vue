@@ -42,7 +42,7 @@
               <circle class="gauge-ring-bg" cx="60" cy="60" r="50" />
               <circle
                 class="gauge-ring-fill"
-                :class="ringStatus(systemInfo.cpu.usage)"
+                :class="ringStatus(systemInfo.cpu.usage, 80, 90, 'is-cpu')"
                 cx="60" cy="60" r="50"
                 :stroke-dasharray="314.2"
                 :stroke-dashoffset="314.2 * (1 - systemInfo.cpu.usage / 100)"
@@ -75,7 +75,7 @@
               <circle class="gauge-ring-bg" cx="60" cy="60" r="50" />
               <circle
                 class="gauge-ring-fill"
-                :class="ringStatus(systemInfo.memory.usage_percent)"
+                :class="ringStatus(systemInfo.memory.usage_percent, 80, 90, 'is-warn')"
                 cx="60" cy="60" r="50"
                 :stroke-dasharray="314.2"
                 :stroke-dashoffset="314.2 * (1 - systemInfo.memory.usage_percent / 100)"
@@ -108,7 +108,7 @@
               <circle class="gauge-ring-bg" cx="60" cy="60" r="50" />
               <circle
                 class="gauge-ring-fill"
-                :class="ringStatus(diskUsagePercent)"
+                :class="ringStatus(diskUsagePercent, 80, 90, 'is-success')"
                 cx="60" cy="60" r="50"
                 :stroke-dasharray="314.2"
                 :stroke-dashoffset="314.2 * (1 - diskUsagePercent / 100)"
@@ -545,8 +545,10 @@
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
+import { useScanLogStore } from "../stores/scanLog";
 
 const emit = defineEmits(["navigate"]);
+const scanLog = useScanLogStore();
 const loading = ref(false);
 const hasLoaded = ref(false);
 const systemInfo = ref({
@@ -687,11 +689,11 @@ function formatCache(kb) {
   return kb + " KB";
 }
 
-// 进度环状态色：正常=强调青，偏高=黄，过高=红
-function ringStatus(v, warn = 80, bad = 90) {
+// 进度环状态色：默认按语义色，偏高=黄，过高=红
+function ringStatus(v, warn = 80, bad = 90, normalColor = "is-success") {
   if (v >= bad) return "is-bad";
   if (v >= warn) return "is-warn";
-  return "is-accent";
+  return normalColor;
 }
 
 // 趋势标签：根据负载高低返回样式类与文案
@@ -720,29 +722,126 @@ const healthRingStyle = computed(() => {
 async function refresh(silent = false) {
   if (loading.value) return; // 防止与前一次加载重叠
   if (!silent) loading.value = true;
+  const doLog = !silent;
+  if (doLog) {
+    scanLog.startTask("系统数据采集", "dashboard");
+
+    // ===== 预步骤日志（invoke 前展示采集流程） =====
+    scanLog.pushPhases([
+      "初始化系统采集器...",
+      { msg: "连接系统信息接口 (WMI / 性能计数器)", level: "info" },
+      "准备硬件探测模块 (CPU/主板/内存/显卡/硬盘)",
+      "校准实时采样时间窗口...",
+      { msg: "开始采集系统运行状态与硬件概览", level: "warning" },
+    ]);
+  }
   try {
+    if (doLog) scanLog.pushLog("读取 CPU / 内存 / 磁盘 / 网络", "dim");
     systemInfo.value = await invoke("get_system_info");
+    if (doLog) {
+      scanLog.pushLog("系统信息获取成功", "success");
+      const si = systemInfo.value;
+      scanLog.pushSeparator("系统运行状态");
+      scanLog.pushDetail("操作系统", si.os_build || si.os_name || "-", "info");
+      scanLog.pushDetail("主机名", si.hostname || "-", "dim");
+      scanLog.pushDetail("已运行时长", formatUptime(si.uptime_hours), "dim");
+      scanLog.pushDetail("CPU 使用率", si.cpu.usage.toFixed(1) + "%", si.cpu.usage > 80 ? "warning" : "success");
+      scanLog.pushDetail(
+        "内存占用",
+        `${si.memory.usage_percent.toFixed(1)}% (${si.memory.used_gb}/${si.memory.total_gb} GB)`,
+        si.memory.usage_percent > 80 ? "warning" : "success"
+      );
+      if (si.disks && si.disks.length > 0) {
+        const d0 = si.disks[0];
+        scanLog.pushDetail(
+          "系统盘使用率",
+          (d0.usage_percent || 0).toFixed(1) + "%",
+          (d0.usage_percent || 0) > 85 ? "warning" : "success"
+        );
+      }
+      if (si.network && si.network.ip_address) {
+        scanLog.pushDetail("IP 地址", si.network.ip_address, "dim");
+      }
+      if (si.battery) {
+        scanLog.pushDetail(
+          "电池电量",
+          `${si.battery.percent}%${si.battery.is_charging ? " (充电中)" : ""}`,
+          si.battery.percent < 30 && !si.battery.is_charging ? "warning" : "success"
+        );
+      }
+    }
   } catch (e) {
     console.error("Failed to get system info:", e);
+    if (doLog) scanLog.pushLog("系统信息获取失败: " + String(e), "error");
   }
 
   // 异步获取硬件详情
   try {
+    if (doLog) scanLog.pushLog("读取硬件设备清单...", "dim");
     hardwareInfo.value = await invoke("get_hardware_info");
+    if (doLog) {
+      scanLog.pushLog("硬件信息获取成功", "success");
+      const hi = hardwareInfo.value;
+      scanLog.pushSeparator("硬件概览");
+      if (hi.motherboard) {
+        scanLog.pushDetail("主板", hi.motherboard.product || "-", "info");
+        scanLog.pushDetail("  厂商", hi.motherboard.manufacturer || "-", "dim");
+      }
+      if (hi.cpu) {
+        scanLog.pushDetail("CPU", `${hi.cpu.name} (${hi.cpu.cores}核/${hi.cpu.logical_cores}线程)`, "info");
+        scanLog.pushDetail("  主频", `${(hi.cpu.max_clock_mhz / 1000).toFixed(2)} GHz`, "dim");
+      }
+      if (hi.memory_sticks && hi.memory_sticks.length > 0) {
+        const total = hi.memory_sticks.reduce((s, m) => s + (m.capacity_gb || 0), 0);
+        scanLog.pushDetail("内存", `${total} GB · ${hi.memory_sticks.length} 条`, "info");
+        scanLog.pushDetail("  频率", `${memorySpeed} MHz`, "dim");
+      }
+      if (hi.gpus && hi.gpus.length > 0) {
+        scanLog.pushDetail("显卡", `${hi.gpus.length} 张 (${gpuSummaryName})`, "info");
+        hi.gpus.slice(0, 3).forEach((g, i) => {
+          scanLog.pushDetail(`  显卡${i + 1}`, `${g.name} · ${g.adapter_ram_gb} GB 显存`, "dim");
+        });
+      }
+    }
   } catch (e) {
     console.error("Failed to get hardware info:", e);
     hardwareInfo.value = null;
+    if (doLog) scanLog.pushLog("硬件信息获取失败: " + String(e), "warning");
   }
 
   // 异步查询物理硬盘列表
   try {
     physicalDisks.value = await invoke("query_physical_disks");
+    if (doLog) {
+      scanLog.pushLog(`检测到 ${physicalDisks.value.length} 块物理硬盘`, "success");
+      scanLog.pushSeparator("物理硬盘");
+      if (physicalDisks.value.length === 0) {
+        scanLog.pushDetail("结果", "未检测到物理硬盘", "warning");
+      } else {
+        physicalDisks.value.forEach((d, i) => {
+          scanLog.pushDetail(
+            `硬盘${i + 1} ${d.model || "未知型号"}`,
+            `${d.is_ssd ? "SSD" : "HDD"} · ${formatDiskSize(d.size_gb)} · 健康: ${d.health_status || "-"}`,
+            d.health_status === "Healthy" ? "success" : "warning"
+          );
+        });
+      }
+    }
   } catch (e) {
     console.error("Failed to query physical disks:", e);
     physicalDisks.value = [];
+    if (doLog) scanLog.pushLog("硬盘查询失败: " + String(e), "warning");
   }
   hasLoaded.value = true;
-  if (!silent) loading.value = false;
+  if (!silent) {
+    loading.value = false;
+    scanLog.pushSeparator();
+    scanLog.pushLog(
+      `综合健康评分: ${healthScore.value} / 100`,
+      healthScore.value >= 80 ? "success" : healthScore.value >= 60 ? "warning" : "error"
+    );
+    scanLog.complete("系统总览已就绪");
+  }
 }
 
 let refreshTimer = null;
@@ -855,7 +954,7 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
-.gauge-ic.cpu     { background: var(--accent-dim);  color: var(--accent); }
+.gauge-ic.cpu     { background: rgba(249, 115, 22, 0.12); color: #f97316; }
 .gauge-ic.mem     { background: var(--warning-dim); color: var(--warning); }
 .gauge-ic.disk    { background: var(--success-dim); color: var(--success); }
 .gauge-ic.battery { background: var(--info-dim);    color: var(--info); }
@@ -909,6 +1008,8 @@ onUnmounted(() => {
 }
 
 .gauge-ring-fill.is-accent { stroke: var(--accent); }
+.gauge-ring-fill.is-success { stroke: var(--success); }
+.gauge-ring-fill.is-cpu    { stroke: #f97316; }
 .gauge-ring-fill.is-warn   { stroke: var(--warning); }
 .gauge-ring-fill.is-bad    { stroke: var(--danger); }
 .gauge-ring-fill.is-info   { stroke: var(--info); }
