@@ -1,0 +1,47 @@
+[package]
+name = "pc-doctor"
+version = "1.0.0"
+description = "便携式电脑急救工具箱"
+authors = ["PC Doctor"]
+edition = "2021"
+
+[lib]
+name = "pc_doctor_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sysinfo = "0.32"
+walkdir = "2"
+chrono = "0.4"
+uuid = { version = "1", features = ["v4"] }
+glob = "0.3"
+encoding_rs = "0.8"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Registry",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_EventLog",
+    "Win32_System_Threading",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_StationsAndDesktops",
+    "Win32_Security",
+] }
+winreg = "0.52"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
