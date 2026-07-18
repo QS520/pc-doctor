@@ -82,8 +82,8 @@ pub fn diagnose_hardware() -> HardwareDiagnostics {
     #[cfg(windows)]
     {
         // 1. 查询设备管理器中有问题的设备 (ConfigManagerErrorCode != 0)
-        let problem_devices = query_problem_devices();
-        for pd in &problem_devices {
+        let detected_devices = query_problem_devices();
+        for pd in &detected_devices {
             let severity = match pd.problem_code {
                 10 | 12 | 18 | 22 | 28 | 31 | 38 | 41 | 42 | 43 | 45 | 46 | 48 => "critical",
                 _ => "warning",
@@ -96,7 +96,7 @@ pub fn diagnose_hardware() -> HardwareDiagnostics {
                 recommendation: pd.fix_suggestion.clone(),
             });
         }
-        problem_devices.clone_into(&mut problem_devices);
+        problem_devices = detected_devices;
 
         // 2. 查询 WHEA 硬件错误日志 (最近 7 天)
         let whea = query_whea_errors();

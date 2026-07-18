@@ -323,8 +323,9 @@ pub fn get_disk_space(drive: Option<String>) -> DiskSpace {
     #[cfg(windows)]
     {
         let drive_letter = drive.unwrap_or_else(|| "C:\\".to_string());
+        let drive_letter_char = drive_letter.chars().next().unwrap_or('C').to_string();
         let drive_path = if drive_letter.ends_with('\\') {
-            drive_letter
+            drive_letter.clone()
         } else {
             format!("{}\\", drive_letter)
         };
@@ -356,7 +357,7 @@ pub fn get_disk_space(drive: Option<String>) -> DiskSpace {
             };
 
             DiskSpace {
-                drive: drive_letter.chars().next().unwrap_or('C').to_string(),
+                drive: drive_letter_char,
                 total_gb: (total_gb * 100.0).round() / 100.0,
                 free_gb: (free_gb * 100.0).round() / 100.0,
                 used_gb: (used_gb * 100.0).round() / 100.0,

@@ -165,11 +165,18 @@ pub fn get_cpu_temperature() -> Result<f32, String> {
 /// 获取 Windows 磁盘列表（含可用空间）
 #[cfg(windows)]
 fn get_windows_disks() -> Vec<DiskInfo> {
-    use std::ptr;
     use windows::Win32::Storage::FileSystem::{
         GetDiskFreeSpaceExW, GetLogicalDriveStringsW, GetDriveTypeW,
-        DRIVE_FIXED, DRIVE_REMOVABLE,
     };
+
+    // GetDriveTypeW 返回值常量（windows crate 中未导出，手动定义）
+    const DRIVE_UNKNOWN: u32 = 0;
+    const DRIVE_NO_ROOT_DIR: u32 = 1;
+    const DRIVE_REMOVABLE: u32 = 2;
+    const DRIVE_FIXED: u32 = 3;
+    const DRIVE_REMOTE: u32 = 4;
+    const DRIVE_CDROM: u32 = 5;
+    const DRIVE_RAMDISK: u32 = 6;
 
     let mut result = Vec::new();
 

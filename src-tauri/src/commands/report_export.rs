@@ -132,7 +132,7 @@ fn generate_hardware_report_html(data: &serde_json::Value, timestamp: &str) -> (
     let overall_status = data.get("overall_status").and_then(|v| v.as_str()).unwrap_or("unknown");
     let summary = data.get("summary").and_then(|v| v.as_str()).unwrap_or("");
     let findings = data.get("findings").and_then(|v| v.as_array());
-    let problem_devices = data.get("problem_devices").and_then(|v| v.as_array());
+    let _problem_devices = data.get("problem_devices").and_then(|v| v.as_array());
     let whea_errors = data.get("whea_errors").and_then(|v| v.as_array());
     let smart_attrs = data.get("smart_attributes").and_then(|v| v.as_array());
 
@@ -153,7 +153,7 @@ fn generate_hardware_report_html(data: &serde_json::Value, timestamp: &str) -> (
     if let Some(findings) = findings {
         for f in findings {
             let sev = f.get("severity").and_then(|v| v.as_str()).unwrap_or("info");
-            let component = f.get("component").and_then(|v| v.as_str()).unwrap_or("");
+            let _component = f.get("component").and_then(|v| v.as_str()).unwrap_or("");
             let ftitle = f.get("title").and_then(|v| v.as_str()).unwrap_or("");
             let desc = f.get("description").and_then(|v| v.as_str()).unwrap_or("");
             let rec = f.get("recommendation").and_then(|v| v.as_str()).unwrap_or("");

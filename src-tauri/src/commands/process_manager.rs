@@ -1,5 +1,5 @@
 use serde::Serialize;
-use sysinfo::{ProcessRefreshKind, System};
+use sysinfo::System;
 
 #[derive(Serialize, Clone, Debug)]
 pub struct ProcessInfo {

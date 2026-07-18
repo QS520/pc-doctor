@@ -1,5 +1,5 @@
 use serde::Serialize;
-use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System};
+use sysinfo::{ProcessesToUpdate, System};
 
 #[derive(Serialize, Clone, Debug)]
 pub struct BoostResult {

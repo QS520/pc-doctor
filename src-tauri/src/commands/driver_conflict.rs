@@ -481,7 +481,7 @@ fn detect_version_conflicts(drivers: &[DriverRecord]) -> Vec<DriverVersionConfli
                 }
             }
             conflicts.push(DriverVersionConflict {
-                driver_name,
+                driver_name: driver_name.clone(),
                 devices: all_devices,
                 versions: all_versions.clone(),
                 description: format!(

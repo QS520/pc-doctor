@@ -65,7 +65,7 @@ pub fn ping_test(host: Option<String>) -> PingResult {
                 let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
                 let raw = stdout.to_string();
 
-                let mut packets_sent = 10u32;
+                let packets_sent = 10u32;
                 let mut packets_received = 0u32;
                 let mut loss = 100.0;
                 let mut min_ms = 0.0;
@@ -190,7 +190,7 @@ pub fn dns_test(domain: Option<String>, dns_server: Option<String>) -> DnsTestRe
                     success,
                 }
             }
-            Err(e) => DnsTestResult {
+            Err(_e) => DnsTestResult {
                 domain: target_domain,
                 dns_server: dns,
                 resolve_time_ms: 0.0,

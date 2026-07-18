@@ -174,7 +174,7 @@ fn check_driver_date(date_str: &str) -> bool {
 
     let year: i32 = parts[0].parse().unwrap_or(0);
     let month: u32 = parts[1].parse().unwrap_or(0);
-    let day: u32 = parts[2].parse().unwrap_or(0);
+    let _day: u32 = parts[2].parse().unwrap_or(0);
 
     if year == 0 {
         return true;

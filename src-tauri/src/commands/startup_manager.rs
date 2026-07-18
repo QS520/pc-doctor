@@ -260,22 +260,24 @@ pub fn get_boot_duration() -> BootDuration {
 
 #[cfg(windows)]
 fn read_registry_run_items(
-    hive: winreg::RegKey,
+    hive: isize,
     path: &str,
     source_name: &str,
 ) -> Vec<StartupItem> {
     use winreg::enums::*;
+    use winreg::RegKey;
 
+    let hive_key = RegKey::predef(hive);
     let mut items = Vec::new();
 
-    let key = match hive.open_subkey_with_flags(path, KEY_READ) {
+    let key = match hive_key.open_subkey_with_flags(path, KEY_READ) {
         Ok(k) => k,
         Err(_) => return items,
     };
 
     // 同时检查 Run- 下被禁用的项目
     let disabled_path = path.replace("\\Run", "\\Run-");
-    let disabled_key = hive.open_subkey_with_flags(&disabled_path, KEY_READ).ok();
+    let disabled_key = hive_key.open_subkey_with_flags(&disabled_path, KEY_READ).ok();
 
     for (name, value) in key.enum_values().filter_map(|r| r.ok()) {
         let command = value.to_string();
@@ -418,15 +420,18 @@ fn parse_csv_line(line: &str) -> Vec<String> {
 
 #[cfg(windows)]
 fn move_registry_value(
-    hive: winreg::RegKey,
+    hive: isize,
     from_path: &str,
     to_path: &str,
     name: &str,
 ) -> Result<bool, String> {
     use winreg::enums::*;
+    use winreg::RegKey;
+
+    let hive_key = RegKey::predef(hive);
 
     // 读取源值
-    let from_key = hive
+    let from_key = hive_key
         .open_subkey_with_flags(from_path, KEY_READ)
         .map_err(|e| format!("读取注册表失败: {}", e))?;
 
@@ -435,7 +440,7 @@ fn move_registry_value(
         .map_err(|e| format!("读取值失败: {}", e))?;
 
     // 写入目标键
-    let to_key = hive
+    let to_key = hive_key
         .create_subkey_with_flags(to_path, KEY_WRITE)
         .map_err(|e| format!("创建注册表键失败: {}", e))?
         .0;
@@ -445,7 +450,7 @@ fn move_registry_value(
         .map_err(|e| format!("写入注册表失败: {}", e))?;
 
     // 从源键删除
-    let from_key_write = hive
+    let from_key_write = hive_key
         .open_subkey_with_flags(from_path, KEY_WRITE)
         .map_err(|e| format!("打开注册表失败: {}", e))?;
 
