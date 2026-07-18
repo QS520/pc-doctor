@@ -1,9 +1,10 @@
 <template>
   <div class="app">
-    <aside class="sidebar">
-      <div class="brand">
+    <!-- 自定义标题栏（和 DBX 一样融入一体） -->
+    <div class="titlebar" data-tauri-drag-region>
+      <div class="titlebar-brand" data-tauri-drag-region>
         <div class="brand-mark">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 2v8" />
             <path d="m4.93 10.93 1.41 1.41" />
             <path d="M2 18h2" />
@@ -13,52 +14,70 @@
             <path d="m8 22 4-10 4 10" />
           </svg>
         </div>
-        <div class="brand-text">
-          <span class="brand-name">PC 急诊箱</span>
-          <span class="brand-version">v1.0 · 便携版</span>
-        </div>
+        <span class="titlebar-name">PC 急诊箱</span>
       </div>
-
-      <div class="nav-section" v-for="(group, gi) in navGroups" :key="gi">
-        <div class="nav-section-label">{{ group.label }}</div>
-        <button
-          v-for="item in group.items"
-          :key="item.id"
-          :class="['nav-item', { active: activeView === item.id }]"
-          @click="activeView = item.id"
-        >
-          <Icon :name="item.icon" :size="15" :stroke-width="1.75" />
-          <span class="nav-label">{{ item.label }}</span>
+      <div class="titlebar-drag" data-tauri-drag-region></div>
+      <div class="titlebar-controls">
+        <button class="win-btn" @click="minimizeWindow" title="最小化">
+          <svg width="11" height="11" viewBox="0 0 12 12"><rect x="1" y="5.5" width="10" height="1" fill="currentColor"/></svg>
+        </button>
+        <button class="win-btn" @click="toggleMaximize" title="最大化/还原">
+          <svg width="11" height="11" viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+        </button>
+        <button class="win-btn win-close" @click="closeWindow" title="关闭">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M1 1L11 11M11 1L1 11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
         </button>
       </div>
+    </div>
 
-      <div class="sidebar-foot">
-        <!-- 主题切换 -->
-        <div class="theme-switcher">
+    <!-- 主体区域 -->
+    <div class="app-body">
+      <aside class="sidebar">
+        <div class="nav-section" v-for="(group, gi) in navGroups" :key="gi">
+          <div class="nav-section-label">{{ group.label }}</div>
           <button
-            :class="['theme-btn', { active: themeMode === 'dark' }]"
-            title="深色主题"
-            @click="setTheme('dark')"
+            v-for="item in group.items"
+            :key="item.id"
+            :class="['nav-item', { active: activeView === item.id }]"
+            @click="activeView = item.id"
           >
-            <Icon name="moon" :size="13" :stroke-width="2" />
+            <Icon :name="item.icon" :size="15" :stroke-width="1.75" />
+            <span class="nav-label">{{ item.label }}</span>
           </button>
-          <button
-            :class="['theme-btn', { active: themeMode === 'light' }]"
-            title="浅色主题"
-            @click="setTheme('light')"
-          >
-            <Icon name="sun" :size="13" :stroke-width="2" />
-          </button>
-          <div class="theme-divider"></div>
-          <button
-            v-for="color in accentColors"
-            :key="color.id"
-            :class="['accent-btn', { active: accentColor === color.id }]"
-            :style="{ background: color.preview }"
-            :title="color.label"
-            @click="setAccent(color.id)"
-          ></button>
         </div>
+
+        <div class="sidebar-foot">
+          <!-- 主题切换 -->
+          <div class="theme-switcher">
+            <div class="theme-row">
+              <span class="theme-row-label">明暗</span>
+              <button
+                :class="['theme-btn', { active: themeMode === 'dark' }]"
+                title="深色主题"
+                @click="setTheme('dark')"
+              >
+                <Icon name="moon" :size="13" :stroke-width="2" />
+              </button>
+              <button
+                :class="['theme-btn', { active: themeMode === 'light' }]"
+                title="浅色主题"
+                @click="setTheme('light')"
+              >
+                <Icon name="sun" :size="13" :stroke-width="2" />
+              </button>
+            </div>
+            <div class="theme-row">
+              <span class="theme-row-label">配色</span>
+              <button
+                v-for="color in accentColors"
+                :key="color.id"
+                :class="['accent-btn', { active: accentColor === color.id }]"
+                :style="{ background: color.preview }"
+                :title="color.label"
+                @click="setAccent(color.id)"
+              ></button>
+            </div>
+          </div>
 
         <div class="perm-status" v-if="permissionChecked">
           <span :class="['dot', isAdmin ? 'dot-success' : 'dot-warning']"></span>
@@ -78,12 +97,14 @@
     <main class="content">
       <component :is="currentComponent" @navigate="handleNavigate" />
     </main>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import Icon from "./components/Icon.vue";
 import Dashboard from "./components/Dashboard.vue";
 import DiskCleanup from "./components/DiskCleanup.vue";
@@ -234,6 +255,21 @@ onMounted(() => {
   checkPermission();
 });
 
+// ===== 窗口控制 =====
+const appWindow = getCurrentWindow();
+
+async function minimizeWindow() {
+  await appWindow.minimize();
+}
+
+async function toggleMaximize() {
+  await appWindow.toggleMaximize();
+}
+
+async function closeWindow() {
+  await appWindow.close();
+}
+
 function handleNavigate(view) {
   activeView.value = view;
 }
@@ -242,8 +278,97 @@ function handleNavigate(view) {
 <style scoped>
 .app {
   display: flex;
+  flex-direction: column;
   height: 100vh;
   width: 100vw;
+}
+
+/* ===== 自定义标题栏 ===== */
+.titlebar {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  flex-shrink: 0;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.titlebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  width: 208px;
+  height: 100%;
+  flex-shrink: 0;
+  color: var(--text-primary);
+}
+
+.titlebar-brand .brand-mark {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #04201d;
+  flex-shrink: 0;
+}
+
+.titlebar-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.titlebar-drag {
+  flex: 1;
+  height: 100%;
+}
+
+.titlebar-controls {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.win-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 100%;
+  color: var(--text-secondary);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.win-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.win-btn:active {
+  background: var(--bg-elevated);
+}
+
+.win-close:hover {
+  background: #e81123;
+  color: #ffffff;
+}
+
+.win-close:active {
+  background: #c50f1f;
+}
+
+/* ===== 主体区域 ===== */
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
 }
 
 .sidebar {
@@ -253,47 +378,8 @@ function handleNavigate(view) {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  padding: 14px 0;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 14px 14px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 8px;
-}
-
-.brand-mark {
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
-  background: linear-gradient(135deg, var(--accent), #14b8a6);
-  color: #04201d;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.brand-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.2;
-}
-
-.brand-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.brand-version {
-  font-size: 10px;
-  color: var(--text-muted);
-  margin-top: 2px;
-  font-family: var(--font-mono);
+  padding: 8px 0;
+  overflow-y: auto;
 }
 
 .nav-section {
@@ -349,13 +435,27 @@ function handleNavigate(view) {
 /* 主题切换器 */
 .theme-switcher {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 6px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
   background: var(--bg-base);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   margin-bottom: 4px;
+}
+
+.theme-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.theme-row-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  width: 24px;
+  flex-shrink: 0;
+  text-align: center;
 }
 
 .theme-btn {
