@@ -207,7 +207,7 @@ onMounted(loadDiskHealth);
 
 <style scoped>
 .system-repair {
-  max-width: 1000px;
+  max-width: 1600px;
 }
 
 .header {

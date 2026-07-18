@@ -153,7 +153,7 @@ onMounted(refresh);
 
 <style scoped>
 .startup-manager {
-  max-width: 900px;
+  max-width: 1600px;
 }
 
 .header {

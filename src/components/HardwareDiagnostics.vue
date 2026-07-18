@@ -469,7 +469,7 @@ onMounted(() => {
 
 <style scoped>
 .hardware-diagnostics {
-  max-width: 1000px;
+  max-width: 1600px;
 }
 
 /* ===== 页头 ===== */

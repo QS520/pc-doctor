@@ -148,7 +148,7 @@ onMounted(loadProcesses);
 
 <style scoped>
 .process-manager {
-  max-width: 950px;
+  max-width: 1600px;
 }
 
 .header {

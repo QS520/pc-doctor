@@ -183,7 +183,7 @@ onMounted(analyze);
 
 <style scoped>
 .bsod-analyzer {
-  max-width: 950px;
+  max-width: 1600px;
 }
 
 .header {

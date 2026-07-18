@@ -208,7 +208,7 @@ onMounted(analyze);
 
 <style scoped>
 .disk-defrag {
-  max-width: 1000px;
+  max-width: 1600px;
 }
 
 .header {

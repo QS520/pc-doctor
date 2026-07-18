@@ -82,6 +82,7 @@ pub fn run() {
             // === 磁盘空间分析（层级式） ===
             disk_explorer::list_drives,
             disk_explorer::scan_directory,
+            disk_explorer::calculate_dir_sizes,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

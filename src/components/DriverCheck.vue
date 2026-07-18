@@ -213,7 +213,7 @@ onMounted(checkDrivers);
 
 <style scoped>
 .driver-check {
-  max-width: 1000px;
+  max-width: 1600px;
 }
 
 .header {

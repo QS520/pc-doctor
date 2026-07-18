@@ -179,7 +179,7 @@ onMounted(() => {
 
 <style scoped>
 .one-click-boost {
-  max-width: 1000px;
+  max-width: 1600px;
 }
 
 .header {

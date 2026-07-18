@@ -276,7 +276,7 @@ onMounted(loadServices);
 
 <style scoped>
 .service-manager {
-  max-width: 1000px;
+  max-width: 1600px;
 }
 
 .header {

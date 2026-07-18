@@ -498,7 +498,7 @@ onMounted(() => {
 
 <style scoped>
 .driver-conflict {
-  max-width: 1000px;
+  max-width: 1600px;
 }
 
 .header {

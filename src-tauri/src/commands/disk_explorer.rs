@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use tauri::{AppHandle, Emitter};
 use walkdir::WalkDir;
 
 /// 磁盘信息（第一级）
@@ -114,8 +115,9 @@ pub fn list_drives() -> Vec<DriveInfo> {
     drives
 }
 
-/// 扫描指定目录的内容（第二级及以下）
-/// 使用并行遍历 + 超时保护，大幅提升大目录扫描速度
+/// 扫描指定目录的内容（快速模式）
+/// 立即返回当前层级的所有条目：文件大小即时获取，子目录大小先返回 0（待异步计算）
+/// 配合 calculate_dir_sizes 命令异步推送子目录大小，实现"秒开"体验
 #[tauri::command]
 pub fn scan_directory(path: String) -> ScanDirResult {
     let start_time = Instant::now();
@@ -125,7 +127,6 @@ pub fn scan_directory(path: String) -> ScanDirResult {
     let parent_path = get_parent_path(&path, is_root);
 
     let mut entries: Vec<DirEntry> = Vec::new();
-    let mut has_partial = false;
 
     if !path_buf.exists() {
         return ScanDirResult {
@@ -137,14 +138,11 @@ pub fn scan_directory(path: String) -> ScanDirResult {
             entry_count: 0,
             is_root,
             scan_time_ms: 0,
-            has_partial,
+            has_partial: false,
         };
     }
 
-    // 先收集所有直接子条目
-    let mut subdirs: Vec<(PathBuf, String)> = Vec::new();
-    let mut files: Vec<(PathBuf, String, std::fs::Metadata)> = Vec::new();
-
+    // 只读取当前层级（read_dir 本身极快，不递归）
     if let Ok(read_dir) = std::fs::read_dir(&path_buf) {
         for entry in read_dir.filter_map(|e| e.ok()) {
             let entry_path = entry.path();
@@ -165,90 +163,55 @@ pub fn scan_directory(path: String) -> ScanDirResult {
             }
 
             if metadata.is_dir() {
-                subdirs.push((entry_path, name));
+                // 子目录：大小先返回 0，标记为待计算
+                entries.push(DirEntry {
+                    name,
+                    path: entry_path.to_string_lossy().to_string(),
+                    is_dir: true,
+                    size_bytes: 0,
+                    size_display: "计算中...".to_string(),
+                    modified: get_modified_time(&entry_path),
+                    extension: None,
+                    file_count: 0,
+                    is_estimated: true,
+                });
             } else if metadata.is_file() {
-                files.push((entry_path, name, metadata));
+                // 文件：大小即时获取
+                let size = metadata.len();
+                let ext = entry_path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .map(|s| s.to_lowercase());
+                entries.push(DirEntry {
+                    name,
+                    path: entry_path.to_string_lossy().to_string(),
+                    is_dir: false,
+                    size_bytes: size,
+                    size_display: format_size(size),
+                    modified: get_modified_time(&entry_path),
+                    extension: ext,
+                    file_count: 0,
+                    is_estimated: false,
+                });
             }
         }
     }
 
-    // === 优化1：文件处理极快（只读 metadata） ===
-    for (entry_path, name, metadata) in files {
-        let size = metadata.len();
-        let ext = entry_path
-            .extension()
-            .and_then(|e| e.to_str())
-            .map(|s| s.to_lowercase());
-        entries.push(DirEntry {
-            name,
-            path: entry_path.to_string_lossy().to_string(),
-            is_dir: false,
-            size_bytes: size,
-            size_display: format_size(size),
-            modified: get_modified_time(&entry_path),
-            extension: ext,
-            file_count: 0,
-            is_estimated: false,
-        });
-    }
-
-    // === 优化2：子目录大小用 rayon 并行计算 ===
-    // 为每个子目录分配独立的超时检查，避免某个超大目录卡住整个扫描
-    let total_timeout = Arc::new(AtomicBool::new(false));
-    let total_deadline = Instant::now() + Duration::from_secs(8); // 总超时 8 秒
-    let timeout_clone = total_timeout.clone();
-    std::thread::spawn(move || {
-        while Instant::now() < total_deadline {
-            std::thread::sleep(Duration::from_millis(100));
-            if timeout_clone.load(Ordering::Relaxed) {
-                return;
-            }
-        }
-        timeout_clone.store(true, Ordering::Relaxed);
-    });
-
-    // 使用 rayon 并行计算每个子目录的大小
-    use rayon::prelude::*;
-    let subdir_results: Vec<(PathBuf, String, (u64, u64, bool))> = subdirs
-        .par_iter()
-        .map(|(path, name)| {
-            let timeout_flag = total_timeout.clone();
-            let (size, count, is_est) = calculate_dir_size_fast(path, &timeout_flag);
-            (path.clone(), name.clone(), (size, count, is_est))
-        })
-        .collect();
-
-    // 释放超时控制线程
-    total_timeout.store(true, Ordering::Relaxed);
-
-    for (entry_path, name, (size_bytes, file_count, is_estimated)) in subdir_results {
-        if is_estimated {
-            has_partial = true;
-        }
-        entries.push(DirEntry {
-            name,
-            path: entry_path.to_string_lossy().to_string(),
-            is_dir: true,
-            size_bytes,
-            size_display: format_size(size_bytes),
-            modified: get_modified_time(&entry_path),
-            extension: None,
-            file_count,
-            is_estimated,
-        });
-    }
-
-    // 计算总大小
-    let total_size_bytes: u64 = entries.iter().map(|e| e.size_bytes).sum();
-
-    // 按大小降序排列
+    // 文件按大小降序，子目录先排在前面（待计算）
     entries.sort_by(|a, b| {
-        b.size_bytes
-            .cmp(&a.size_bytes)
-            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+        if a.is_dir && !b.is_dir {
+            std::cmp::Ordering::Less
+        } else if !a.is_dir && b.is_dir {
+            std::cmp::Ordering::Greater
+        } else {
+            b.size_bytes
+                .cmp(&a.size_bytes)
+                .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+        }
     });
 
     let scan_time_ms = start_time.elapsed().as_millis() as u64;
+    let total_size_bytes: u64 = entries.iter().map(|e| e.size_bytes).sum();
 
     ScanDirResult {
         current_path,
@@ -259,7 +222,53 @@ pub fn scan_directory(path: String) -> ScanDirResult {
         entry_count: 0,
         is_root,
         scan_time_ms,
-        has_partial,
+        has_partial: false,
+    }
+}
+
+/// 异步计算多个目录的大小，通过事件逐步推送结果
+/// 前端监听 "dir-size-update" 事件，实时更新 UI
+#[tauri::command]
+pub async fn calculate_dir_sizes(paths: Vec<String>, app: tauri::AppHandle) {
+    use rayon::prelude::*;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    if paths.is_empty() {
+        return;
+    }
+
+    // 全局超时保护：最多 30 秒
+    let timeout = Arc::new(AtomicBool::new(false));
+    let timeout_clone = timeout.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(30)).await;
+        timeout_clone.store(true, Ordering::Relaxed);
+    });
+
+    // 并行计算每个目录大小，完成后立即推送事件
+    let results: Vec<(String, u64, u64, bool)> = paths
+        .par_iter()
+        .map(|path| {
+            let path_buf = PathBuf::from(path);
+            let timeout_flag = timeout.clone();
+            let (size, count, is_est) = walk_with_timeout(&path_buf, &timeout_flag);
+            (path.clone(), size, count, is_est)
+        })
+        .collect();
+
+    // 推送每个结果
+    for (path, size, count, is_estimated) in results {
+        let _ = app.emit(
+            "dir-size-update",
+            serde_json::json!({
+                "path": path,
+                "size_bytes": size,
+                "size_display": format_size(size),
+                "file_count": count,
+                "is_estimated": is_estimated,
+            }),
+        );
     }
 }
 
@@ -294,51 +303,6 @@ fn get_parent_path(path: &str, is_root: bool) -> Option<String> {
             }
         })
         .flatten()
-}
-
-/// 快速计算目录大小（带超时保护）
-/// 返回 (size_bytes, file_count, is_estimated)
-fn calculate_dir_size_fast(
-    dir_path: &PathBuf,
-    timeout_flag: &Arc<AtomicBool>,
-) -> (u64, u64, bool) {
-    use std::sync::mpsc;
-    use std::thread;
-
-    // 用子线程+通道实现，主线程超时检查
-    let (tx, rx) = mpsc::channel();
-    let path_clone = dir_path.clone();
-    let timeout_clone = timeout_flag.clone();
-
-    let handle = thread::spawn(move || {
-        let result = walk_with_timeout(&path_clone, &timeout_clone);
-        let _ = tx.send(result);
-    });
-
-    // 等待最多 3 秒（单目录），或直到全局超时
-    let deadline = Instant::now() + Duration::from_secs(3);
-    loop {
-        match rx.try_recv() {
-            Ok(result) => {
-                // 线程完成，等待回收
-                let _ = handle.join();
-                return result;
-            }
-            Err(mpsc::TryRecvError::Empty) => {
-                if Instant::now() >= deadline || timeout_flag.load(Ordering::Relaxed) {
-                    // 超时：放弃这个目录的深度扫描，返回 0
-                    // 线程仍在运行，但因为我们用的是 scoped thread，它会继续跑完
-                    // 这里不 join，让它在后台完成（实际进程退出时会清理）
-                    return (0, 0, true);
-                }
-                std::thread::sleep(Duration::from_millis(20));
-            }
-            Err(mpsc::TryRecvError::Disconnected) => {
-                let _ = handle.join();
-                return (0, 0, true);
-            }
-        }
-    }
 }
 
 /// 带超时检查的目录遍历

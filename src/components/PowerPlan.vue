@@ -303,7 +303,7 @@ onMounted(loadAll);
 
 <style scoped>
 .power-plan {
-  max-width: 1000px;
+  max-width: 1600px;
 }
 
 .header {

@@ -160,7 +160,10 @@
               <span class="entry-name">{{ entry.name }}</span>
             </span>
             <span class="col-size mono" :class="getSizeClass(entry.size_bytes)">
-              {{ entry.size_display }}
+              <span v-if="entry.is_dir && entry.size_bytes === 0 && entry.is_estimated" class="calculating">
+                <span class="calc-dot"></span>计算中
+              </span>
+              <span v-else>{{ entry.size_display }}</span>
             </span>
             <span class="col-count mono">
               {{ entry.is_dir ? entry.file_count : '-' }}
@@ -198,8 +201,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import Icon from "./Icon.vue";
 
 const loading = ref(true);
@@ -208,6 +212,48 @@ const drives = ref([]);
 const currentResult = ref(null);
 const currentPath = ref("");
 const copiedPaths = ref({}); // 记录已复制的路径，用于显示反馈
+let sizeUpdateUnlisten = null; // 事件监听器清理函数
+
+// 监听子目录大小更新事件
+onMounted(async () => {
+  try {
+    sizeUpdateUnlisten = await listen("dir-size-update", (event) => {
+      const { path, size_bytes, size_display, file_count, is_estimated } = event.payload;
+      // 更新当前列表中对应条目的大小
+      if (currentResult.value && currentResult.value.entries) {
+        const entry = currentResult.value.entries.find((e) => e.path === path);
+        if (entry) {
+          entry.size_bytes = size_bytes;
+          entry.size_display = size_display;
+          entry.file_count = file_count;
+          entry.is_estimated = is_estimated;
+          // 重新排序（按大小降序，文件夹优先）
+          currentResult.value.entries.sort((a, b) => {
+            if (a.is_dir && !b.is_dir) return -1;
+            if (!a.is_dir && b.is_dir) return 1;
+            return b.size_bytes - a.size_bytes;
+          });
+          // 更新总大小
+          currentResult.value.total_size_bytes = currentResult.value.entries.reduce(
+            (sum, e) => sum + e.size_bytes,
+            0
+          );
+          currentResult.value.total_size_display = formatSizeLocal(
+            currentResult.value.total_size_bytes
+          );
+        }
+      }
+    });
+  } catch (e) {
+    console.log("Event listener not available (browser preview mode)");
+  }
+
+  await loadDrives();
+});
+
+onUnmounted(() => {
+  if (sizeUpdateUnlisten) sizeUpdateUnlisten();
+});
 
 // 面包屑
 const breadcrumbs = computed(() => {
@@ -269,17 +315,42 @@ async function loadDrives() {
 async function loadDirectory(path) {
   loading.value = true;
   try {
+    // 快速扫描：立即返回列表（文件大小即时，子目录大小为 0 待计算）
     currentResult.value = await invoke("scan_directory", { path });
     currentPath.value = path;
     view.value = "list";
+    loading.value = false;
+
+    // 异步触发子目录大小计算（后台并行，通过事件推送结果）
+    const subdirs = currentResult.value.entries
+      .filter((e) => e.is_dir)
+      .map((e) => e.path);
+    if (subdirs.length > 0) {
+      invoke("calculate_dir_sizes", { paths: subdirs }).catch((e) =>
+        console.log("Size calc skipped (browser mode):", e)
+      );
+    }
   } catch (e) {
     console.error("Failed to scan directory:", e);
     // 浏览器预览模式：显示演示数据
     currentResult.value = getDemoDirectory(path);
     currentPath.value = path;
     view.value = "list";
+    loading.value = false;
   }
-  loading.value = false;
+}
+
+// 格式化文件大小（前端版，用于事件更新）
+function formatSizeLocal(bytes) {
+  if (bytes === 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let size = bytes;
+  let unitIdx = 0;
+  while (size >= 1024 && unitIdx < units.length - 1) {
+    size /= 1024;
+    unitIdx++;
+  }
+  return unitIdx === 0 ? `${bytes} B` : `${size.toFixed(2)} ${units[unitIdx]}`;
 }
 
 // === 演示数据（仅用于浏览器预览） ===
@@ -445,13 +516,11 @@ function getFileIcon(ext) {
   if (['ttf', 'otf', 'woff'].includes(e)) return "list";
   return "list";
 }
-
-onMounted(loadDrives);
 </script>
 
 <style scoped>
 .page {
-  max-width: 1100px;
+  max-width: 1600px;
 }
 
 .header {
@@ -857,6 +926,29 @@ onMounted(loadDrives);
   font-size: 10px;
   font-weight: 500;
   cursor: help;
+}
+
+/* 计算中动画 */
+.calculating {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.calc-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: calc-pulse 1s ease-in-out infinite;
+}
+
+@keyframes calc-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
 }
 
 .empty-state {

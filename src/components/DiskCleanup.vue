@@ -220,7 +220,7 @@ onMounted(scan);
 
 <style scoped>
 .disk-cleanup {
-  max-width: 900px;
+  max-width: 1600px;
 }
 
 .header {
