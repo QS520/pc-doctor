@@ -230,7 +230,6 @@ pub fn scan_directory(path: String) -> ScanDirResult {
 /// 前端监听 "dir-size-update" 事件，实时更新 UI
 #[tauri::command]
 pub async fn calculate_dir_sizes(paths: Vec<String>, app: tauri::AppHandle) {
-    use rayon::prelude::*;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
 

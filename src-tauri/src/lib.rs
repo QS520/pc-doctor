@@ -85,6 +85,7 @@ pub fn run() {
             disk_explorer::calculate_dir_sizes,
             // 磁盘详情异步查询
             system_info::query_disk_details,
+            system_info::query_physical_disks,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

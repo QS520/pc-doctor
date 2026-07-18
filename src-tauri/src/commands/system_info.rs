@@ -468,3 +468,76 @@ foreach ($drv in $drives) {{
 fn get_windows_disks() -> Vec<DiskInfo> {
     vec![]
 }
+
+/// 物理硬盘信息（直接查询 Get-PhysicalDisk，和系统修复使用相同逻辑）
+#[derive(Serialize, Clone)]
+pub struct PhysicalDiskInfo {
+    pub model: String,
+    pub is_ssd: bool,
+    pub size_gb: f64,
+    pub interface_type: String,
+    pub health_status: String,
+}
+
+/// 查询物理硬盘列表（直接用 Get-PhysicalDisk，确保型号/类型/容量正确）
+#[tauri::command]
+pub async fn query_physical_disks() -> Vec<PhysicalDiskInfo> {
+    #[cfg(not(windows))]
+    {
+        return vec![];
+    }
+
+    #[cfg(windows)]
+    {
+        use std::process::Command;
+
+        // 与系统修复使用完全相同的 PowerShell 查询逻辑
+        let script = r#"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+Get-PhysicalDisk | ForEach-Object {
+    $model = $_.FriendlyName
+    $media = $_.MediaType.ToString()
+    $bus = $_.BusType.ToString()
+    $sizeGB = [math]::Round($_.Size / 1GB, 2)
+    $health = $_.HealthStatus.ToString()
+    Write-Output "$model|$media|$bus|$sizeGB|$health"
+}"#;
+
+        let app_handle_result = tokio::task::spawn_blocking(move || {
+            let output = Command::new("powershell")
+                .args(["-NoProfile", "-Command", script])
+                .output();
+
+            let mut disks = Vec::new();
+            if let Ok(output) = output {
+                let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
+                for line in stdout.lines() {
+                    let line = line.trim();
+                    if line.is_empty() || !line.contains('|') {
+                        continue;
+                    }
+                    let parts: Vec<&str> = line.splitn(5, '|').collect();
+                    if parts.len() >= 5 {
+                        let model = parts[0].to_string();
+                        let media = parts[1].to_lowercase();
+                        let is_ssd = media.contains("ssd") || media.contains("solid");
+                        let size_gb: f64 = parts[3].parse().unwrap_or(0.0);
+                        disks.push(PhysicalDiskInfo {
+                            model,
+                            is_ssd,
+                            size_gb,
+                            interface_type: parts[2].to_string(),
+                            health_status: parts[4].to_string(),
+                        });
+                    }
+                }
+            }
+            disks
+        })
+        .await;
+
+        match app_handle_result {
+            Ok(disks) => disks,
+            Err(_) => vec![],
+        }
+    }
+}

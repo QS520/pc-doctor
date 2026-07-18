@@ -242,15 +242,15 @@
                   <span class="tag" :class="disk.is_ssd ? 'tag-success' : 'tag-neutral'">
                     {{ disk.is_ssd ? '固态 SSD' : '机械 HDD' }}
                   </span>
-                  <span class="tag tag-neutral" v-if="disk.size">{{ disk.size }}</span>
+                  <span class="tag tag-neutral" v-if="disk.size_gb > 0">{{ formatDiskSize(disk.size_gb) }}</span>
                 </div>
-                <div class="kv-row" v-if="disk.model && disk.model !== '-'">
+                <div class="kv-row" v-if="disk.model">
                   <span class="kv-label">厂商/型号</span>
                   <span class="kv-value">{{ disk.model }}</span>
                 </div>
-                <div class="kv-row" v-if="disk.size">
+                <div class="kv-row" v-if="disk.size_gb > 0">
                   <span class="kv-label">容量</span>
-                  <span class="kv-value mono">{{ disk.size }}</span>
+                  <span class="kv-value mono">{{ formatDiskSize(disk.size_gb) }}</span>
                 </div>
                 <div class="kv-row" v-if="disk.interface_type && disk.interface_type !== '-'">
                   <span class="kv-label">接口</span>
@@ -349,9 +349,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import Icon from "./Icon.vue";
 
 const emit = defineEmits(["navigate"]);
@@ -377,7 +376,6 @@ const hwMb = ref(true);
 const hwMem = ref(true);
 const hwGpu = ref(true);
 const hwDisk = ref(true);
-let diskDetailsUnlisten = null;
 
 const totalMemoryGB = computed(() => {
   if (!hardwareInfo.value?.memory_sticks) return 0;
@@ -406,32 +404,8 @@ const mergedMemorySticks = computed(() => {
   return Object.values(groups);
 });
 
-// 物理硬盘列表（按型号去重，合并同一硬盘的多个分区）
-const physicalDisks = computed(() => {
-  if (!systemInfo.value.disks || systemInfo.value.disks.length === 0) return [];
-  const groups = {};
-  for (const disk of systemInfo.value.disks) {
-    // 用型号作为物理硬盘分组键（同一型号通常是同一块物理硬盘）
-    const key = disk.model && disk.model !== '-' ? disk.model : `unknown-${disk.drive}`;
-    if (!groups[key]) {
-      groups[key] = {
-        model: disk.model && disk.model !== '-' ? disk.model : '',
-        is_ssd: disk.is_ssd,
-        interface_type: disk.interface_type || '',
-        // 取所有分区中最大的总容量作为硬盘容量
-        size: formatDiskSize(disk.total_gb),
-        total_gb: disk.total_gb,
-      };
-    } else {
-      // 同一物理硬盘的多个分区，取最大容量
-      if (disk.total_gb > groups[key].total_gb) {
-        groups[key].total_gb = disk.total_gb;
-        groups[key].size = formatDiskSize(disk.total_gb);
-      }
-    }
-  }
-  return Object.values(groups);
-});
+// 物理硬盘列表（直接查询 Get-PhysicalDisk，和系统修复使用相同逻辑）
+const physicalDisks = ref([]);
 
 function formatDiskSize(gb) {
   if (!gb || gb <= 0) return '';
@@ -484,57 +458,18 @@ async function refresh() {
     hardwareInfo.value = null;
   }
 
-  // 异步查询磁盘详情（型号、序列号、健康状态等）
-  const drives = systemInfo.value.disks?.map((d) => d.drive) || [];
-  if (drives.length > 0) {
-    invoke("query_disk_details", { drives }).catch((e) =>
-      console.log("Disk details query skipped:", e)
-    );
+  // 异步查询物理硬盘列表（直接用 Get-PhysicalDisk，和系统修复相同逻辑）
+  try {
+    physicalDisks.value = await invoke("query_physical_disks");
+  } catch (e) {
+    console.error("Failed to query physical disks:", e);
+    physicalDisks.value = [];
   }
   hasLoaded.value = true;
 }
 
-// 监听磁盘详情更新事件
-async function setupDiskDetailsListener() {
-  try {
-    diskDetailsUnlisten = await listen("disk-details-update", (event) => {
-      const {
-        drive,
-        label,
-        file_system,
-        serial_number,
-        model,
-        interface_type,
-        is_ssd,
-        health_status,
-        partition_style,
-      } = event.payload;
-      // 更新对应磁盘的详情字段
-      if (systemInfo.value.disks) {
-        const disk = systemInfo.value.disks.find((d) => d.drive === drive);
-        if (disk) {
-          disk.label = label;
-          disk.file_system = file_system;
-          disk.serial_number = serial_number;
-          disk.model = model;
-          disk.interface_type = interface_type;
-          disk.is_ssd = is_ssd;
-          disk.health_status = health_status;
-          disk.partition_style = partition_style;
-        }
-      }
-    });
-  } catch (e) {
-    console.log("Disk details listener not available:", e);
-  }
-}
-
 onMounted(() => {
-  setupDiskDetailsListener();
-});
-
-onUnmounted(() => {
-  if (diskDetailsUnlisten) diskDetailsUnlisten();
+  // 不自动加载，等待用户点击"开始加载"
 });
 </script>
 
