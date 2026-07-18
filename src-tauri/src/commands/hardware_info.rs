@@ -119,7 +119,7 @@ Get-CimInstance -ClassName Win32_PhysicalMemory | ForEach-Object {
         .output();
 
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -163,7 +163,7 @@ Write-Output $line
         .output();
 
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         let line = stdout.trim();
         if !line.is_empty() {
             let parts: Vec<&str> = line.split('|').collect();
@@ -202,7 +202,7 @@ Write-Output $line
         .output();
 
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         let line = stdout.trim();
         if !line.is_empty() {
             let parts: Vec<&str> = line.split('|').collect();
@@ -242,7 +242,7 @@ Get-CimInstance -ClassName Win32_VideoController | ForEach-Object {
         .output();
 
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {

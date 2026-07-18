@@ -234,6 +234,7 @@ struct DriverRecord {
 #[cfg(windows)]
 fn query_problem_driver_devices() -> Vec<ProblemDeviceRaw> {
     let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Get-WmiObject Win32_PnPEntity | Where-Object { $_.ConfigManagerErrorCode -ne 0 } | ForEach-Object {
     $name = $_.Name
     if (!$name) { $name = $_.DeviceID }
@@ -249,7 +250,7 @@ Get-WmiObject Win32_PnPEntity | Where-Object { $_.ConfigManagerErrorCode -ne 0 }
 
     let mut devices = Vec::new();
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -374,6 +375,7 @@ fn query_driver_for_device(device_id: &str) -> DriverInfoRaw {
     let escaped_id = device_id.replace('\'', "''").replace('\\', "\\\\");
     let ps_command = format!(
         r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Get-CimInstance Win32_PnPSignedDriver -Filter "DeviceID='{}'" -ErrorAction SilentlyContinue | Select-Object -First 1 | ForEach-Object {{
     $signed = if ($_.DriverSignatureProvider -ne $null -and $_.DriverSignatureProvider -ne '') {{ 'true' }} else {{ 'false' }}
     $date = ''
@@ -389,7 +391,7 @@ Get-CimInstance Win32_PnPSignedDriver -Filter "DeviceID='{}'" -ErrorAction Silen
         .output();
 
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         let line = stdout.trim();
         if !line.is_empty() {
             let parts: Vec<&str> = line.splitn(4, '|').collect();
@@ -414,6 +416,7 @@ Get-CimInstance Win32_PnPSignedDriver -Filter "DeviceID='{}'" -ErrorAction Silen
 #[cfg(windows)]
 fn query_all_drivers() -> Vec<DriverRecord> {
     let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DeviceName -and $_.DriverName } | ForEach-Object {
     $date = ''
     if ($_.DriverDate) { $date = $_.DriverDate.ToString('yyyy-MM-dd') }
@@ -430,7 +433,7 @@ Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DeviceName -and $_.Dri
 
     let mut drivers = Vec::new();
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -503,6 +506,7 @@ fn detect_version_conflicts(drivers: &[DriverRecord]) -> Vec<DriverVersionConfli
 fn query_driver_load_failures() -> Vec<DriverLoadFailure> {
     // 查询驱动加载失败事件（Service Control Manager 错误）
     let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 try {
     $events = Get-WinEvent -FilterHashtable @{
         LogName='System'
@@ -527,7 +531,7 @@ try {
 
     let mut failures = Vec::new();
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -569,6 +573,7 @@ fn extract_driver_name_from_message(msg: &str) -> String {
 #[cfg(windows)]
 fn query_unsigned_drivers() -> Vec<DriverConflict> {
     let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DriverSignatureProvider -eq $null -or $_.DriverSignatureProvider -eq '' } | Select-Object -First 20 | ForEach-Object {
     $devName = $_.DeviceName
     if (!$devName) { $devName = $_.DeviceID }
@@ -585,7 +590,7 @@ Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DriverSignatureProvide
 
     let mut drivers = Vec::new();
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -616,6 +621,7 @@ Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DriverSignatureProvide
 fn check_gpu_driver_issues() -> Vec<String> {
     let mut issues = Vec::new();
     let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $gpuDrivers = Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DeviceClass -eq 'DISPLAY' -or $_.DeviceName -match 'NVIDIA|AMD|Radeon|GeForce|Intel.*Graphics' }
 foreach ($drv in $gpuDrivers) {
     $ageDays = 0
@@ -634,7 +640,7 @@ foreach ($drv in $gpuDrivers) {
         .output();
 
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {

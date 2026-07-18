@@ -205,7 +205,7 @@ pub fn get_boot_duration() -> BootDuration {
             .args([
                 "-NoProfile",
                 "-Command",
-                "(Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime.ToString('yyyy-MM-dd HH:mm:ss')",
+                "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; (Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime.ToString('yyyy-MM-dd HH:mm:ss')",
             ])
             .output();
 
@@ -220,7 +220,7 @@ pub fn get_boot_duration() -> BootDuration {
             .args([
                 "-NoProfile",
                 "-Command",
-                "Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-Diagnostics-Performance/Operational'; Id=100} -MaxEvents 1 | ForEach-Object { $_.Properties[1].Value }",
+                "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-Diagnostics-Performance/Operational'; Id=100} -MaxEvents 1 | ForEach-Object { $_.Properties[1].Value }",
             ])
             .output();
 

@@ -100,7 +100,7 @@ pub fn get_system_errors(limit: Option<u32>) -> Vec<SystemError> {
     {
         // 使用 PowerShell 查询系统事件日志中的错误和严重事件
         let ps_command = format!(
-            "Get-WinEvent -FilterHashtable @{{LogName='System'; Level=1,2}} -MaxEvents {} | ForEach-Object {{ '{0}' + $_.TimeCreated.ToString('yyyy-MM-dd HH:mm:ss') + '{1}' + $_.ProviderName + '{1}' + $_.Id + '{1}' + ($_.Message -replace '\\s+', ' ').Substring(0, [Math]::Min(500, $_.Message.Length)) + '{1}' + $_.LevelDisplayName + '{2}' }}",
+            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-WinEvent -FilterHashtable @{{LogName='System'; Level=1,2}} -MaxEvents {} | ForEach-Object {{ '{0}' + $_.TimeCreated.ToString('yyyy-MM-dd HH:mm:ss') + '{1}' + $_.ProviderName + '{1}' + $_.Id + '{1}' + ($_.Message -replace '\\s+', ' ').Substring(0, [Math]::Min(500, $_.Message.Length)) + '{1}' + $_.LevelDisplayName + '{2}' }}",
             max, "\x1f", "\x1e"
         );
 
@@ -274,6 +274,7 @@ fn read_bugcheck_events() -> Vec<BsodCrashInfo> {
 
     // 使用 PowerShell 查询 BugCheck 事件
     let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
         Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName='Microsoft-Windows-WER-SystemErrorReporting'} -MaxEvents 20 | ForEach-Object {
             $msg = $_.Message
             Write-Output "$($_.TimeCreated.ToString('yyyy-MM-dd HH:mm:ss'))|$msg"
@@ -314,6 +315,7 @@ fn read_bugcheck_events() -> Vec<BsodCrashInfo> {
 
     // 也查询 BugCheck 事件源
     let ps_command2 = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
         Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName='Microsoft-Windows-Kernel-Power'; Id=41} -MaxEvents 10 | ForEach-Object {
             Write-Output "$($_.TimeCreated.ToString('yyyy-MM-dd HH:mm:ss'))|$($_.Message -replace '\s+', ' ')"
         }

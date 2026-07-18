@@ -150,7 +150,7 @@ fn get_network_info() -> NetworkInfo {
         .args([
             "-NoProfile",
             "-Command",
-            "Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -ne $null } | Select-Object -First 1 | ForEach-Object { $ip=$_.IPv4Address.IPAddress; $if=$_.InterfaceAlias; $mac=(Get-NetAdapter | Where-Object { $_.Name -eq $if } | Select-Object -ExpandProperty MacAddress); Write-Output \"$ip|$mac|$if\" }",
+            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -ne $null } | Select-Object -First 1 | ForEach-Object { $ip=$_.IPv4Address.IPAddress; $if=$_.InterfaceAlias; $mac=(Get-NetAdapter | Where-Object { $_.Name -eq $if } | Select-Object -ExpandProperty MacAddress); Write-Output \"$ip|$mac|$if\" }",
         ])
         .output();
 
@@ -186,7 +186,7 @@ fn get_battery_info() -> Option<BatteryInfo> {
         .args([
             "-NoProfile",
             "-Command",
-            "$b = Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue; if ($b) { $charging = if($b.BatteryStatus -eq 2){'True'}else{'False'}; $mins = $b.EstimatedChargeRemaining; Write-Output \"True|$charging|$($b.EstimatedChargeRemaining)|$($b.EstimatedRunTime)\" } else { Write-Output 'False' }",
+            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $b = Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue; if ($b) { $charging = if($b.BatteryStatus -eq 2){'True'}else{'False'}; $mins = $b.EstimatedChargeRemaining; Write-Output \"True|$charging|$($b.EstimatedChargeRemaining)|$($b.EstimatedRunTime)\" } else { Write-Output 'False' }",
         ])
         .output();
 
@@ -225,7 +225,7 @@ pub fn get_cpu_temperature() -> Result<f32, String> {
             .args([
                 "-NoProfile",
                 "-Command",
-                "Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty CurrentTemperature",
+                "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty CurrentTemperature",
             ])
             .output()
             .map_err(|e| format!("执行失败: {}", e))?;
@@ -245,7 +245,7 @@ pub fn get_cpu_temperature() -> Result<f32, String> {
             .args([
                 "-NoProfile",
                 "-Command",
-                "Get-CimInstance -Namespace root/OpenHardwareMonitor -ClassName Sensor -Filter \"SensorType='Temperature'\" -ErrorAction SilentlyContinue | Where-Object { $_.Parent -like '*cpu*' } | Select-Object -First 1 -ExpandProperty Value",
+                "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-CimInstance -Namespace root/OpenHardwareMonitor -ClassName Sensor -Filter \"SensorType='Temperature'\" -ErrorAction SilentlyContinue | Where-Object { $_.Parent -like '*cpu*' } | Select-Object -First 1 -ExpandProperty Value",
             ])
             .output()
             .map_err(|e| format!("执行失败: {}", e))?;
@@ -429,8 +429,8 @@ foreach ($drv in $drives) {{
             .output();
 
         if let Ok(output) = output {
-            // 用 GBK 解码（Windows 中文系统默认代码页），回退 UTF-8
-            let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+            // 用 UTF-8 解码（PowerShell 脚本已设置 OutputEncoding 为 UTF8）
+            let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
             for line in stdout.lines() {
                 let line = line.trim();
                 if line.is_empty() || !line.contains('|') {

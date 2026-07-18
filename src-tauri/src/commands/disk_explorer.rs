@@ -66,7 +66,7 @@ pub fn list_drives() -> Vec<DriveInfo> {
             .output();
 
         if let Ok(output) = output {
-            let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+            let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
             for line in stdout.lines() {
                 let line = line.trim();
                 if line.is_empty() {

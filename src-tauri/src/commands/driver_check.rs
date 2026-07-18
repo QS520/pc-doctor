@@ -31,6 +31,7 @@ pub fn check_drivers() -> DriverCheckResult {
     #[cfg(windows)]
     {
         let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Get-CimInstance -ClassName Win32_PnPSignedDriver | ForEach-Object {
     $devName = $_.DeviceName
     if (!$devName) { $devName = $_.DeviceID }
@@ -53,7 +54,7 @@ Get-CimInstance -ClassName Win32_PnPSignedDriver | ForEach-Object {
             .output();
 
         if let Ok(output) = output {
-            let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+            let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
 
             for line in stdout.lines() {
                 let line = line.trim();
@@ -100,6 +101,7 @@ Get-CimInstance -ClassName Win32_PnPSignedDriver | ForEach-Object {
 
         // 同时检查有问题的设备
         let problem_ps = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Get-CimInstance -ClassName Win32_PnPEntity | Where-Object { $_.ConfigManagerErrorCode -ne 0 -and $_.ConfigManagerErrorCode -ne 22 } | ForEach-Object {
     $code = $_.ConfigManagerErrorCode
     $desc = switch ($code) {
@@ -125,7 +127,7 @@ Get-CimInstance -ClassName Win32_PnPEntity | Where-Object { $_.ConfigManagerErro
             .output();
 
         if let Ok(problem_output) = problem_output {
-            let (stdout, _, _) = encoding_rs::GBK.decode(&problem_output.stdout);
+            let (stdout, _, _) = encoding_rs::UTF8.decode(&problem_output.stdout);
             for line in stdout.lines() {
                 let line = line.trim();
                 if line.is_empty() {

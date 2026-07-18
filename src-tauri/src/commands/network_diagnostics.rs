@@ -62,7 +62,7 @@ pub fn ping_test(host: Option<String>) -> PingResult {
 
         match output {
             Ok(output) => {
-                let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+                let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
                 let raw = stdout.to_string();
 
                 let packets_sent = 10u32;
@@ -159,7 +159,7 @@ pub fn dns_test(domain: Option<String>, dns_server: Option<String>) -> DnsTestRe
 
         match output {
             Ok(output) => {
-                let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+                let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
                 let raw = stdout.to_string();
 
                 let mut ips = Vec::new();
@@ -219,7 +219,7 @@ pub fn traceroute(host: Option<String>, max_hops: Option<u32>) -> Vec<TraceRoute
             .output();
 
         if let Ok(output) = output {
-            let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+            let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
 
             for line in stdout.lines() {
                 let line = line.trim();
@@ -272,6 +272,7 @@ pub fn get_network_info() -> NetworkInfo {
     #[cfg(windows)]
     {
         let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Get-NetAdapter | Where-Object { $_.Status -eq 'Up' -or $_.Status -eq 'Disconnected' } | ForEach-Object {
     $adapter = $_
     $ipConfig = Get-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue
@@ -293,7 +294,7 @@ Get-NetAdapter | Where-Object { $_.Status -eq 'Up' -or $_.Status -eq 'Disconnect
             .output();
 
         if let Ok(output) = output {
-            let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+            let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
 
             for line in stdout.lines() {
                 let line = line.trim();

@@ -242,6 +242,7 @@ pub fn launch_memory_diagnostic() -> Result<bool, String> {
 #[cfg(windows)]
 fn query_problem_devices() -> Vec<ProblemDevice> {
     let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Get-WmiObject Win32_PnPEntity | Where-Object { $_.ConfigManagerErrorCode -ne 0 } | ForEach-Object {
     $name = $_.Name
     if (!$name) { $name = $_.DeviceID }
@@ -257,7 +258,7 @@ Get-WmiObject Win32_PnPEntity | Where-Object { $_.ConfigManagerErrorCode -ne 0 }
 
     let mut devices = Vec::new();
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -384,6 +385,7 @@ fn explain_problem_code(code: u32) -> (String, String, String) {
 fn query_whea_errors() -> Vec<WheaError> {
     // 查询最近 7 天的 WHEA 硬件错误日志
     let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 try {
     $events = Get-WinEvent -FilterHashtable @{
         LogName='System'
@@ -416,7 +418,7 @@ try {
 
     let mut errors = Vec::new();
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -501,6 +503,7 @@ fn query_smart_attributes() -> Vec<SmartAttribute> {
 
     // 通过 wmic 查询磁盘 SMART 基础状态
     let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Get-PhysicalDisk | ForEach-Object {
     $disk = $_
     $reliability = $disk | Get-StorageReliabilityCounter -ErrorAction SilentlyContinue
@@ -535,7 +538,7 @@ Get-PhysicalDisk | ForEach-Object {
         .output();
 
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -575,12 +578,12 @@ Get-PhysicalDisk | ForEach-Object {
         .args([
             "-NoProfile",
             "-Command",
-            "Get-PhysicalDisk | ForEach-Object { Write-Output \"$($_.FriendlyName)|$($_.HealthStatus)|$($_.OperationalStatus)\" }",
+            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-PhysicalDisk | ForEach-Object { Write-Output \"$($_.FriendlyName)|$($_.HealthStatus)|$($_.OperationalStatus)\" }",
         ])
         .output();
 
     if let Ok(output) = health_output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -663,6 +666,7 @@ fn interpret_smart_attr(attr: &str, value: u64, unit: &str) -> (String, u64, Str
 #[cfg(windows)]
 fn query_battery_health() -> Option<BatteryHealth> {
     let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $bat = Get-WmiObject Win32_Battery -ErrorAction SilentlyContinue
 if ($bat) {
     $designed = 0
@@ -693,7 +697,7 @@ if ($bat) {
         .output();
 
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         let line = stdout.trim();
         if !line.is_empty() {
             let parts: Vec<&str> = line.split('|').collect();
@@ -727,6 +731,7 @@ if ($bat) {
 fn query_memory_errors() -> u32 {
     // 查询内存相关的 WHEA 错误数量
     let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 try {
     $events = Get-WinEvent -FilterHashtable @{
         LogName='System'
@@ -749,7 +754,7 @@ try {
         .output();
 
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         stdout.trim().parse().unwrap_or(0)
     } else {
         0

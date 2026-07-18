@@ -37,8 +37,8 @@ pub fn run_sfc() -> RepairResult {
     match output {
         Ok(output) => {
             // sfc 的输出是 GBK 编码，需要用 encoding_rs 解码
-            let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
-            let (stderr, _, _) = encoding_rs::GBK.decode(&output.stderr);
+            let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
+            let (stderr, _, _) = encoding_rs::UTF_8.decode(&output.stderr);
 
             RepairResult {
                 success: output.status.success(),
@@ -70,8 +70,8 @@ pub fn run_dism() -> RepairResult {
 
     match output {
         Ok(output) => {
-            let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
-            let (stderr, _, _) = encoding_rs::GBK.decode(&output.stderr);
+            let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
+            let (stderr, _, _) = encoding_rs::UTF_8.decode(&output.stderr);
 
             RepairResult {
                 success: output.status.success(),
@@ -104,8 +104,8 @@ pub fn run_chkdsk(drive: Option<String>) -> RepairResult {
 
     match output {
         Ok(output) => {
-            let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
-            let (stderr, _, _) = encoding_rs::GBK.decode(&output.stderr);
+            let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
+            let (stderr, _, _) = encoding_rs::UTF_8.decode(&output.stderr);
 
             RepairResult {
                 success: output.status.success(),
@@ -132,6 +132,7 @@ pub fn check_disk_health() -> Vec<DiskHealthInfo> {
     {
         // 使用 PowerShell 查询磁盘 S.M.A.R.T 状态
         let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Get-PhysicalDisk | ForEach-Object {
     $disk = $_
     $details = @()
@@ -166,7 +167,7 @@ Get-PhysicalDisk | ForEach-Object {
             .output();
 
         if let Ok(output) = output {
-            let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+            let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
 
             for line in stdout.lines() {
                 let line = line.trim();
@@ -215,7 +216,7 @@ Get-PhysicalDisk | ForEach-Object {
                 .output();
 
             if let Ok(output) = wmic_output {
-                let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+                let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
                 let lines: Vec<&str> = stdout.lines().collect();
 
                 for line in lines.iter().skip(1) {

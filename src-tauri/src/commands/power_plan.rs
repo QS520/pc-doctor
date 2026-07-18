@@ -37,7 +37,7 @@ pub fn get_power_plans() -> Vec<PowerPlan> {
             .output();
 
         if let Ok(output) = output {
-            let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+            let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
 
             for line in stdout.lines() {
                 let line = line.trim();
@@ -86,7 +86,7 @@ pub fn set_power_plan(guid: String) -> PowerPlanResult {
                         message: format!("电源方案已切换 ({})", guid),
                     }
                 } else {
-                    let (stderr, _, _) = encoding_rs::GBK.decode(&output.stderr);
+                    let (stderr, _, _) = encoding_rs::UTF_8.decode(&output.stderr);
                     PowerPlanResult {
                         success: false,
                         message: format!("切换失败: {}。可能需要管理员权限。", stderr.trim()),
@@ -118,7 +118,7 @@ pub fn get_cpu_throttle_info() -> CpuThrottleInfo {
 
         let mut current_plan = "未知".to_string();
         if let Ok(output) = plan_output {
-            let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+            let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
             let line = stdout.trim();
             // 格式: 电源方案 GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (平衡)
             if let Some(paren_start) = line.rfind('(') {
@@ -137,7 +137,7 @@ pub fn get_cpu_throttle_info() -> CpuThrottleInfo {
 
         let mut min_percent = 5u32;
         if let Ok(output) = min_output {
-            let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+            let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
             // 查找 "当前交流电源设置索引" 或 "Current AC Power Setting Index"
             for line in stdout.lines() {
                 let line = line.trim();
@@ -164,7 +164,7 @@ pub fn get_cpu_throttle_info() -> CpuThrottleInfo {
 
         let mut max_percent = 100u32;
         if let Ok(output) = max_output {
-            let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+            let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
             for line in stdout.lines() {
                 let line = line.trim();
                 if line.contains("当前") && line.contains("索引") || line.contains("Current AC") {
@@ -190,7 +190,7 @@ pub fn get_cpu_throttle_info() -> CpuThrottleInfo {
 
         let mut display_timeout = 10u32;
         if let Ok(output) = display_output {
-            let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+            let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
             for line in stdout.lines() {
                 let line = line.trim();
                 if line.contains("当前") && line.contains("索引") || line.contains("Current AC") {
@@ -216,7 +216,7 @@ pub fn get_cpu_throttle_info() -> CpuThrottleInfo {
 
         let mut sleep_timeout = 30u32;
         if let Ok(output) = sleep_output {
-            let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+            let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
             for line in stdout.lines() {
                 let line = line.trim();
                 if line.contains("当前") && line.contains("索引") || line.contains("Current AC") {

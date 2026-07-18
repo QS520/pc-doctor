@@ -95,7 +95,9 @@
     </aside>
 
     <main class="content">
-      <component :is="currentComponent" @navigate="handleNavigate" />
+      <keep-alive>
+        <component :is="currentComponent" @navigate="handleNavigate" />
+      </keep-alive>
     </main>
     </div>
   </div>

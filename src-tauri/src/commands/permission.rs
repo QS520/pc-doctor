@@ -152,7 +152,7 @@ fn check_windows_admin() -> bool {
         .output();
 
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         // 检查是否包含 Mandatory Label\High
         if stdout.contains("S-1-16-12288") || stdout.to_lowercase().contains("high mandatory level") {
             return true;
@@ -186,7 +186,7 @@ fn check_integrity_level() -> String {
         .output();
 
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
         let stdout_lower = stdout.to_lowercase();
 
         if stdout_lower.contains("s-1-16-12288") || stdout_lower.contains("high mandatory level") {

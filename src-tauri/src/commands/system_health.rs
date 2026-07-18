@@ -270,6 +270,7 @@ fn check_sfc_quick() -> SfcCheckResult {
     if cbs_log.exists() {
         // 读取 CBS.log 中最近的损坏记录
         let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $logFile = "C:\Windows\Logs\CBS\CBS.log"
 if (Test-Path $logFile) {
     $lines = Get-Content $logFile -Tail 2000 -ErrorAction SilentlyContinue
@@ -288,7 +289,7 @@ if (Test-Path $logFile) {
             .args(["-NoProfile", "-Command", ps_command.trim()])
             .output();
         if let Ok(output) = output {
-            let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+            let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
             for line in stdout.lines() {
                 let line = line.trim();
                 if line.is_empty() {
@@ -317,6 +318,7 @@ fn check_critical_registry() -> Vec<RegistryIssue> {
 
     // 检查 Winlogon 关键键
     let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 # 检查关键注册表项
 $results = @()
 
@@ -369,7 +371,7 @@ $results | ForEach-Object { Write-Output $_ }
         .output();
 
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -402,11 +404,11 @@ fn check_boot_config() -> BootConfig {
         .args([
             "-NoProfile",
             "-Command",
-            r#"if (Test-Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SafeBoot\Option') { (Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\SafeBoot\Option' -ErrorAction SilentlyContinue).OptionValue } else { 'normal' }"#,
+            r#"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; if (Test-Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SafeBoot\Option') { (Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\SafeBoot\Option' -ErrorAction SilentlyContinue).OptionValue } else { 'normal' }"#,
         ])
         .output();
     if let Ok(output) = safe_output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         let val = stdout.trim();
         if !val.is_empty() && val != "normal" && val != "0" {
             safe_mode = true;
@@ -418,11 +420,11 @@ fn check_boot_config() -> BootConfig {
         .args([
             "-NoProfile",
             "-Command",
-            "(Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToString('yyyy-MM-dd HH:mm:ss')",
+            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; (Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToString('yyyy-MM-dd HH:mm:ss')",
         ])
         .output();
     let last_boot_time = if let Ok(output) = boot_output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         stdout.trim().to_string()
     } else {
         "未知".to_string()
@@ -433,11 +435,11 @@ fn check_boot_config() -> BootConfig {
         .args([
             "-NoProfile",
             "-Command",
-            r#"Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName='Microsoft-Windows-Kernel-Boot','Microsoft-Windows-Kernel-General'; Level=1,2; StartTime=(Get-Date).AddDays(-7)} -MaxEvents 10 -ErrorAction SilentlyContinue | ForEach-Object { Write-Output "$($_.TimeCreated.ToString('yyyy-MM-dd HH:mm:ss'))|$($_.Id)|$(($_.Message -replace '[\r\n]+', ' ').Trim())" }"#,
+            r#"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName='Microsoft-Windows-Kernel-Boot','Microsoft-Windows-Kernel-General'; Level=1,2; StartTime=(Get-Date).AddDays(-7)} -MaxEvents 10 -ErrorAction SilentlyContinue | ForEach-Object { Write-Output "$($_.TimeCreated.ToString('yyyy-MM-dd HH:mm:ss'))|$($_.Id)|$(($_.Message -replace '[\r\n]+', ' ').Trim())" }"#,
         ])
         .output();
     if let Ok(output) = err_output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if !line.is_empty() {
@@ -460,11 +462,11 @@ fn check_boot_config() -> BootConfig {
         .args([
             "-NoProfile",
             "-Command",
-            r#"Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-Diagnostics-Performance/Operational'; Id=100} -MaxEvents 1 -ErrorAction SilentlyContinue | ForEach-Object { [math]::Round($_.Properties[1].Value) }"#,
+            r#"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-Diagnostics-Performance/Operational'; Id=100} -MaxEvents 1 -ErrorAction SilentlyContinue | ForEach-Object { [math]::Round($_.Properties[1].Value) }"#,
         ])
         .output();
     if let Ok(output) = dur_output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         boot_time = stdout.trim().parse().unwrap_or(0);
     }
 
@@ -496,6 +498,7 @@ fn check_boot_config() -> BootConfig {
 #[cfg(windows)]
 fn check_failed_updates() -> Vec<FailedUpdate> {
     let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $session = New-Object -ComObject Microsoft.Update.Session
 $searcher = $session.CreateUpdateSearcher()
 $count = $searcher.GetTotalHistoryCount()
@@ -518,7 +521,7 @@ if ($count -gt 0) {
 
     let mut updates = Vec::new();
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         for line in stdout.lines() {
             let line = line.trim();
             if line.is_empty() {
@@ -563,7 +566,7 @@ fn check_activation() -> ActivationStatus {
         .args([
             "-NoProfile",
             "-Command",
-            r#"$slmgr = Get-CimInstance -ClassName SoftwareLicensingProduct -Filter "ApplicationId='55c92734-d682-4d71-983e-d6ec3f16059f' AND PartialProductKey != NULL" -ErrorAction SilentlyContinue
+            r#"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $slmgr = Get-CimInstance -ClassName SoftwareLicensingProduct -Filter "ApplicationId='55c92734-d682-4d71-983e-d6ec3f16059f' AND PartialProductKey != NULL" -ErrorAction SilentlyContinue
             if ($slmgr) {
                 $licenseStatus = $slmgr.LicenseStatus
                 $name = $slmgr.Name
@@ -579,7 +582,7 @@ fn check_activation() -> ActivationStatus {
         .output();
 
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         let line = stdout.trim();
         let parts: Vec<&str> = line.splitn(2, '|').collect();
         if parts.len() >= 2 {
@@ -657,6 +660,7 @@ fn check_critical_files() -> Vec<CorruptedFile> {
 #[cfg(windows)]
 fn check_restore_points() -> u32 {
     let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 try {
     $sr = Get-CimInstance -Namespace 'root\default' -Class SystemRestore -ErrorAction SilentlyContinue
     if ($sr) {
@@ -672,7 +676,7 @@ try {
         .args(["-NoProfile", "-Command", ps_command.trim()])
         .output();
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         stdout.trim().parse().unwrap_or(0)
     } else {
         0
@@ -682,6 +686,7 @@ try {
 #[cfg(windows)]
 fn count_recent_critical_events() -> u32 {
     let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 try {
     $events = Get-WinEvent -FilterHashtable @{
         LogName='System'
@@ -701,7 +706,7 @@ try {
         .args(["-NoProfile", "-Command", ps_command.trim()])
         .output();
     if let Ok(output) = output {
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        let (stdout, _, _) = encoding_rs::UTF8.decode(&output.stdout);
         stdout.trim().parse().unwrap_or(0)
     } else {
         0

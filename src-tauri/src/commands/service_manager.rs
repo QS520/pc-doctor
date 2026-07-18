@@ -26,6 +26,7 @@ pub fn get_services() -> Vec<ServiceInfo> {
     #[cfg(windows)]
     {
         let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Get-CimInstance -ClassName Win32_Service | ForEach-Object {
     $name = $_.Name
     $display = $_.DisplayName
@@ -44,7 +45,7 @@ Get-CimInstance -ClassName Win32_Service | ForEach-Object {
             .output();
 
         if let Ok(output) = output {
-            let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+            let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
 
             for line in stdout.lines() {
                 let line = line.trim();

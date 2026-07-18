@@ -33,8 +33,8 @@ pub fn analyze_defrag() -> Vec<DriveDefragInfo> {
             .output();
 
         if let Ok(output) = output {
-            let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
-            let (stderr, _, _) = encoding_rs::GBK.decode(&output.stderr);
+            let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
+            let (stderr, _, _) = encoding_rs::UTF_8.decode(&output.stderr);
             let combined = format!("{}\n{}", stdout, stderr);
 
             let mut current_drive = String::new();
@@ -158,8 +158,8 @@ pub fn run_defrag(drive: String, optimize_ssd: bool) -> DefragResult {
 
     match output {
         Ok(output) => {
-            let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
-            let (stderr, _, _) = encoding_rs::GBK.decode(&output.stderr);
+            let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
+            let (stderr, _, _) = encoding_rs::UTF_8.decode(&output.stderr);
 
             DefragResult {
                 success: output.status.success(),
@@ -190,8 +190,8 @@ pub fn run_trim_all() -> DefragResult {
 
     match output {
         Ok(output) => {
-            let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
-            let (stderr, _, _) = encoding_rs::GBK.decode(&output.stderr);
+            let (stdout, _, _) = encoding_rs::UTF_8.decode(&output.stdout);
+            let (stderr, _, _) = encoding_rs::UTF_8.decode(&output.stderr);
 
             DefragResult {
                 success: output.status.success(),
