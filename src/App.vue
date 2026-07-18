@@ -98,13 +98,16 @@
       <keep-alive>
         <component :is="currentComponent" @navigate="handleNavigate" />
       </keep-alive>
+
+      <!-- 全局扫描日志面板 -->
+      <ScanLogPanel ref="logPanelRef" tabindex="-1" @keydown.enter="onPanelEnter" />
     </main>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./components/Icon.vue";
 import Dashboard from "./components/Dashboard.vue";
@@ -123,6 +126,8 @@ import SystemRepair from "./components/SystemRepair.vue";
 import HardwareDiagnostics from "./components/HardwareDiagnostics.vue";
 import DriverConflict from "./components/DriverConflict.vue";
 import SystemHealth from "./components/SystemHealth.vue";
+import ScanLogPanel from "./components/ScanLogPanel.vue";
+import { useScanLogStore } from "./stores/scanLog";
 
 const navGroups = [
   {
@@ -287,6 +292,23 @@ async function closeWindow() {
 
 function handleNavigate(view) {
   activeView.value = view;
+}
+
+// ===== 扫描日志面板 =====
+const scanLogStore = useScanLogStore();
+const logPanelRef = ref(null);
+
+// 切换页面时自动关闭日志面板
+watch(activeView, (newVal, oldVal) => {
+  if (newVal !== oldVal && scanLogStore.visible) {
+    scanLogStore.reset();
+  }
+});
+
+function onPanelEnter() {
+  if (scanLogStore.status === "done") {
+    scanLogStore.dismiss();
+  }
 }
 </script>
 
