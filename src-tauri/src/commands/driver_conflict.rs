@@ -50,19 +50,11 @@ pub struct DriverConflictReport {
 /// 深度驱动冲突诊断
 /// 定位具体哪个驱动冲突、原因、修复方法
 #[tauri::command]
+#[allow(unused_assignments)]
 pub fn diagnose_driver_conflicts() -> DriverConflictReport {
     let mut conflicts: Vec<DriverConflict> = Vec::new();
-
-    #[cfg(windows)]
-    let mut version_conflicts: Vec<DriverVersionConflict>;
-    #[cfg(not(windows))]
-    let version_conflicts: Vec<DriverVersionConflict> = Vec::new();
-
-    #[cfg(windows)]
-    let mut load_failures: Vec<DriverLoadFailure>;
-    #[cfg(not(windows))]
-    let load_failures: Vec<DriverLoadFailure> = Vec::new();
-
+    let mut version_conflicts: Vec<DriverVersionConflict> = Vec::new();
+    let mut load_failures: Vec<DriverLoadFailure> = Vec::new();
     let mut unsigned: Vec<DriverConflict> = Vec::new();
     let mut recommendations: Vec<String> = Vec::new();
 

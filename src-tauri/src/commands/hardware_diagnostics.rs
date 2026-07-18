@@ -71,24 +71,12 @@ pub struct HardwareDiagnostics {
 /// 深度硬件故障诊断
 /// 通过 WHEA 错误日志、设备管理器错误码、SMART 属性、电池健康综合判断
 #[tauri::command]
+#[allow(unused_assignments)]
 pub fn diagnose_hardware() -> HardwareDiagnostics {
     let mut findings: Vec<Finding> = Vec::new();
-
-    #[cfg(windows)]
-    let mut problem_devices: Vec<ProblemDevice>;
-    #[cfg(not(windows))]
-    let problem_devices: Vec<ProblemDevice> = Vec::new();
-
-    #[cfg(windows)]
-    let mut whea_errors: Vec<WheaError>;
-    #[cfg(not(windows))]
-    let whea_errors: Vec<WheaError> = Vec::new();
-
-    #[cfg(windows)]
-    let mut smart_attrs: Vec<SmartAttribute>;
-    #[cfg(not(windows))]
-    let smart_attrs: Vec<SmartAttribute> = Vec::new();
-
+    let mut problem_devices: Vec<ProblemDevice> = Vec::new();
+    let mut whea_errors: Vec<WheaError> = Vec::new();
+    let mut smart_attrs: Vec<SmartAttribute> = Vec::new();
     let mut battery: Option<BatteryHealth> = None;
     let mut memory_errors = false;
 
