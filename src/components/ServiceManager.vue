@@ -164,7 +164,7 @@ import { ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
 
-const loading = ref(true);
+const loading = ref(false);
 const hasLoaded = ref(false);
 const services = ref([]);
 const categoryFilter = ref("全部");
@@ -325,13 +325,29 @@ function categoryClass(category) {
 
 .filter-select,
 .filter-input {
-  padding: 6px 10px;
+  padding: 0 10px;
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: 12px;
   height: 28px;
+  line-height: 26px;
+  vertical-align: middle;
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.filter-select {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23888' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 24px;
 }
 
 .filter-select:focus,

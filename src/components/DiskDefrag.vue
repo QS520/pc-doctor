@@ -133,7 +133,7 @@ import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import Icon from "./Icon.vue";
 
-const loading = ref(true);
+const loading = ref(false);
 const hasLoaded = ref(false);
 const running = ref("");
 const drives = ref([]);

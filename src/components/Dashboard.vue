@@ -48,17 +48,6 @@
           <div class="metric-sub">可用 {{ systemInfo.memory.free_gb }} GB</div>
         </div>
 
-        <div class="metric metric-disk" v-for="disk in systemInfo.disks" :key="disk.drive">
-          <div class="metric-head">
-            <Icon name="disc" :size="13" :stroke-width="1.75" />
-            <span class="metric-label">{{ disk.drive }}: 盘</span>
-            <span class="metric-value">{{ disk.usage_percent.toFixed(1) }}<span class="unit">%</span></span>
-          </div>
-          <div class="bar"><div class="bar-fill" :class="getBarClass(disk.usage_percent)" :style="{ width: disk.usage_percent + '%' }"></div></div>
-          <div class="metric-meta mono">{{ disk.used_gb }} / {{ disk.total_gb }} GB</div>
-          <div class="metric-sub">{{ disk.drive_type }} · 剩余 {{ disk.free_gb }} GB</div>
-        </div>
-
         <!-- 电池（如果有） -->
         <div class="metric metric-battery" v-if="systemInfo.battery">
           <div class="metric-head">
