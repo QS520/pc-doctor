@@ -79,10 +79,12 @@ pub fn run() {
             // === 诊断报告导出 ===
             report_export::export_report,
             report_export::export_report_text,
-            // === 磁盘空间分析（层级式） ===
+            // 磁盘分析
             disk_explorer::list_drives,
             disk_explorer::scan_directory,
             disk_explorer::calculate_dir_sizes,
+            // 磁盘详情异步查询
+            system_info::query_disk_details,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

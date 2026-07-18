@@ -61,7 +61,7 @@ pub fn list_drives() -> Vec<DriveInfo> {
             .args([
                 "-NoProfile",
                 "-Command",
-                "Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=2 or DriveType=3 or DriveType=4' | ForEach-Object { $total=[math]::Round($_.Size/1GB,2); $free=[math]::Round($_.FreeSpace/1GB,2); $used=$total-$free; $pct=if($total -gt 0){[math]::Round($used/$total*100,1)}else{0}; $label=$_.VolumeName; if(!$label){$label='-'}; Write-Output \"$($_.DeviceID)|$label|$total|$used|$free|$pct|$($_.FileSystem)\" }",
+                "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=2 or DriveType=3 or DriveType=4' | ForEach-Object { $total=[math]::Round($_.Size/1GB,2); $free=[math]::Round($_.FreeSpace/1GB,2); $used=$total-$free; $pct=if($total -gt 0){[math]::Round($used/$total*100,1)}else{0}; $label=$_.VolumeName; if(!$label){$label='-'}; Write-Output \"$($_.DeviceID)|$label|$total|$used|$free|$pct|$($_.FileSystem)\" }",
             ])
             .output();
 

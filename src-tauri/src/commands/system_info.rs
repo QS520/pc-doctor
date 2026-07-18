@@ -327,12 +327,8 @@ fn get_windows_disks() -> Vec<DiskInfo> {
                     let percent = (used_gb / total_gb) * 100.0;
                     let drive_letter = drive_str.chars().next().unwrap_or('C').to_string();
 
-                    // 查询该磁盘的详细信息（卷标、文件系统、序列号）
-                    let (label, file_system, serial_number) = query_volume_info(&drive_letter);
-                    // 查询物理磁盘信息（型号、接口、是否 SSD）
-                    let (model, interface_type, is_ssd, health_status, partition_style) =
-                        query_physical_disk_info(&drive_letter);
-
+                    // 注意：详细信息（型号/序列号/健康状态等）通过异步命令 query_disk_details 查询
+                    // 这里只快速返回容量信息，避免阻塞 UI
                     result.push(DiskInfo {
                         drive: drive_letter,
                         total_gb: (total_gb * 100.0).round() / 100.0,
@@ -340,14 +336,14 @@ fn get_windows_disks() -> Vec<DiskInfo> {
                         used_gb: (used_gb * 100.0).round() / 100.0,
                         usage_percent: (percent * 10.0).round() / 10.0,
                         drive_type: type_str.to_string(),
-                        label,
-                        file_system,
-                        serial_number,
-                        model,
-                        interface_type,
-                        partition_style,
-                        is_ssd,
-                        health_status,
+                        label: String::new(),
+                        file_system: String::new(),
+                        serial_number: String::new(),
+                        model: String::new(),
+                        interface_type: String::new(),
+                        partition_style: String::new(),
+                        is_ssd: false,
+                        health_status: String::new(),
                     });
                 }
             }
@@ -379,123 +375,87 @@ fn get_windows_disks() -> Vec<DiskInfo> {
     result
 }
 
-/// 查询卷信息：卷标、文件系统、序列号
-#[cfg(windows)]
-fn query_volume_info(drive_letter: &str) -> (String, String, String) {
+/// 异步查询所有磁盘的详细信息（单次 PowerShell 调用）
+/// 通过事件 "disk-details-update" 推送结果，避免阻塞 UI
+#[tauri::command]
+pub async fn query_disk_details(drives: Vec<String>, app: tauri::AppHandle) {
+    if drives.is_empty() {
+        return;
+    }
+
     use std::process::Command;
+    use tauri::Emitter;
+
+    // 构造驱动器列表字符串：'C','D','E'
+    let drive_list: Vec<String> = drives.iter().map(|d| format!("'{}'", d)).collect();
+    let drive_filter = drive_list.join(",");
+
+    // 单次 PowerShell 脚本查询所有磁盘的详细信息
+    // 输出格式：盘符|卷标|文件系统|序列号|型号|接口|介质类型|健康状态|分区样式
+    let script = format!(
+        r#"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$drives = @({})
+foreach ($drv in $drives) {{
+    $letter = $drv.Substring(0,1)
+    $vol = Get-Volume -DriveLetter $letter -ErrorAction SilentlyContinue
+    $ld = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$letter:'" -ErrorAction SilentlyContinue
+    $label = ""
+    $fs = ""
+    $serial = ""
+    if ($vol) {{ $label = $vol.FileSystemLabel; $fs = $vol.FileSystem }}
+    if ($ld) {{ if(!$label){{$label=$ld.VolumeName}}; if(!$fs){{$fs=$ld.FileSystem}}; $serial=$ld.VolumeSerialNumber }}
+    if (!$label) {{ $label = "-" }}
+    if (!$fs) {{ $fs = "-" }}
+    if (!$serial) {{ $serial = "-" }}
+    $model = "-"; $bus = "-"; $media = "-"; $health = "-"; $pstyle = "-"
+    $part = Get-Partition -DriveLetter $letter -ErrorAction SilentlyContinue
+    if ($part) {{
+        $diskNum = $part.DiskNumber
+        $pd = Get-PhysicalDisk -ErrorAction SilentlyContinue | Where-Object {{ $_.DeviceId -eq "$diskNum" }}
+        if ($pd) {{ $model=$pd.FriendlyName; $bus=$pd.BusType.ToString(); $media=$pd.MediaType.ToString(); $health=$pd.HealthStatus.ToString() }}
+        $disk = Get-Disk -Number $diskNum -ErrorAction SilentlyContinue
+        if ($disk) {{ $pstyle = $disk.PartitionStyle.ToString() }}
+    }}
+    Write-Output "$letter|$label|$fs|$serial|$model|$bus|$media|$health|$pstyle"
+}}"#,
+        drive_filter
+    );
 
     let output = Command::new("powershell")
-        .args([
-            "-NoProfile",
-            "-Command",
-            &format!(
-                "$d = Get-CimInstance Win32_LogicalDisk -Filter \"DeviceID='{}:'\"; $vol = Get-Volume -DriveLetter {} -ErrorAction SilentlyContinue; $label = if($vol){{$vol.FileSystemLabel}}else{{$d.VolumeName}}; if(!$label){{$label='-'}}; $fs = if($vol){{$vol.FileSystem}}else{{$d.FileSystem}}; if(!$fs){{$fs='-'}}; $serial = $d.VolumeSerialNumber; if(!$serial){{$serial='-'}}; Write-Output \"$label|$fs|$serial\""
-            , drive_letter, drive_letter),
-        ])
+        .args(["-NoProfile", "-Command", &script])
         .output();
 
     if let Ok(output) = output {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let line = stdout.trim();
-        if !line.is_empty() {
-            let parts: Vec<&str> = line.splitn(3, '|').collect();
-            if parts.len() >= 3 {
-                return (
-                    parts[0].to_string(),
-                    parts[1].to_string(),
-                    parts[2].to_string(),
+        // 用 GBK 解码（Windows 中文系统默认代码页），回退 UTF-8
+        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+        for line in stdout.lines() {
+            let line = line.trim();
+            if line.is_empty() || !line.contains('|') {
+                continue;
+            }
+            let parts: Vec<&str> = line.splitn(9, '|').collect();
+            if parts.len() >= 9 {
+                let drive = parts[0].to_string();
+                let media_lower = parts[6].to_lowercase();
+                let is_ssd = media_lower.contains("ssd") || media_lower.contains("solid");
+
+                let _ = app.emit(
+                    "disk-details-update",
+                    serde_json::json!({
+                        "drive": drive,
+                        "label": parts[1],
+                        "file_system": parts[2],
+                        "serial_number": parts[3],
+                        "model": parts[4],
+                        "interface_type": parts[5],
+                        "is_ssd": is_ssd,
+                        "health_status": parts[7],
+                        "partition_style": parts[8],
+                    }),
                 );
             }
         }
     }
-    (String::new(), String::new(), String::new())
-}
-
-/// 查询物理磁盘信息：型号、接口类型、是否 SSD、健康状态、分区样式
-#[cfg(windows)]
-fn query_physical_disk_info(drive_letter: &str) -> (String, String, bool, String, String) {
-    use std::process::Command;
-
-    // 通过分区 -> 磁盘映射获取物理磁盘
-    let output = Command::new("powershell")
-        .args([
-            "-NoProfile",
-            "-Command",
-            &format!(
-                "$part = Get-Partition -DriveLetter {} -ErrorAction SilentlyContinue; if($part){{ $diskNum = $part.DiskNumber; $pd = Get-PhysicalDisk -ErrorAction SilentlyContinue | Where-Object {{$_.DeviceId -eq $diskNum}}; if($pd){{ $model = $pd.FriendlyName; $bus = $pd.BusType.ToString(); $media = $pd.MediaType.ToString(); $health = $pd.HealthStatus.ToString(); Write-Output \"$model|$bus|$media|$health|$diskNum\" }} }}", drive_letter),
-        ])
-        .output();
-
-    if let Ok(output) = output {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let line = stdout.trim();
-        if !line.is_empty() && line.contains('|') {
-            let parts: Vec<&str> = line.splitn(5, '|').collect();
-            if parts.len() >= 4 {
-                let model = parts[0].to_string();
-                let bus = parts[1].to_string();
-                let media = parts[2].to_string();
-                let health = parts[3].to_string();
-                let disk_num = parts.get(4).map(|s| *s).unwrap_or("");
-
-                let is_ssd = media.to_lowercase().contains("ssd") || media.to_lowercase().contains("solid");
-                let partition_style = query_partition_style(disk_num);
-
-                return (model, bus, is_ssd, health, partition_style);
-            }
-        }
-    }
-    (
-        String::new(),
-        String::new(),
-        false,
-        String::new(),
-        String::new(),
-    )
-}
-
-/// 查询分区样式（MBR 或 GPT）
-#[cfg(windows)]
-fn query_partition_style(disk_number: &str) -> String {
-    use std::process::Command;
-
-    if disk_number.is_empty() {
-        return String::new();
-    }
-
-    let output = Command::new("powershell")
-        .args([
-            "-NoProfile",
-            "-Command",
-            &format!(
-                "$d = Get-Disk -Number {} -ErrorAction SilentlyContinue; if($d){{ Write-Output $d.PartitionStyle.ToString() }}", disk_number),
-        ])
-        .output();
-
-    if let Ok(output) = output {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let style = stdout.trim();
-        if !style.is_empty() {
-            return style.to_string();
-        }
-    }
-    String::new()
-}
-
-#[cfg(not(windows))]
-fn query_volume_info(_drive_letter: &str) -> (String, String, String) {
-    (String::new(), String::new(), String::new())
-}
-
-#[cfg(not(windows))]
-fn query_physical_disk_info(_drive_letter: &str) -> (String, String, bool, String, String) {
-    (
-        String::new(),
-        String::new(),
-        false,
-        String::new(),
-        String::new(),
-    )
 }
 
 #[cfg(not(windows))]

@@ -236,13 +236,14 @@
               <span class="card-title">磁盘详情 {{ systemInfo.disks.length > 1 ? `(${systemInfo.disks.length})` : '' }}</span>
               <Icon :name="hwDisk ? 'chevron-down' : 'chevron-right'" :size="14" :stroke-width="2" />
             </div>
-            <div class="card-body" v-if="hwDisk">
+            <div class="card-body disk-list" v-if="hwDisk">
               <div class="disk-block" v-for="(disk, idx) in systemInfo.disks" :key="idx">
                 <div class="disk-block-head">
                   <Icon name="disc" :size="12" />
                   <span class="disk-block-name">{{ disk.drive }}: 盘</span>
                   <span class="tag tag-neutral" v-if="disk.is_ssd">SSD</span>
-                  <span class="tag tag-neutral" v-else>HDD</span>
+                  <span class="tag tag-neutral" v-else-if="disk.model || disk.health_status">HDD</span>
+                  <span class="tag tag-loading" v-else>加载中</span>
                   <span class="tag" :class="disk.health_status === 'Healthy' ? 'tag-success' : 'tag-warning'" v-if="disk.health_status">
                     {{ disk.health_status === 'Healthy' ? '健康' : disk.health_status }}
                   </span>
@@ -265,15 +266,15 @@
                   <span class="kv-label">文件系统</span>
                   <span class="kv-value mono">{{ disk.file_system }}</span>
                 </div>
-                <div class="kv-row" v-if="disk.model">
+                <div class="kv-row" v-if="disk.model && disk.model !== '-'">
                   <span class="kv-label">型号</span>
                   <span class="kv-value">{{ disk.model }}</span>
                 </div>
-                <div class="kv-row" v-if="disk.interface_type">
+                <div class="kv-row" v-if="disk.interface_type && disk.interface_type !== '-'">
                   <span class="kv-label">接口</span>
                   <span class="kv-value mono">{{ disk.interface_type }}</span>
                 </div>
-                <div class="kv-row" v-if="disk.partition_style">
+                <div class="kv-row" v-if="disk.partition_style && disk.partition_style !== '-'">
                   <span class="kv-label">分区样式</span>
                   <span class="kv-value mono">{{ disk.partition_style }}</span>
                 </div>
@@ -378,8 +379,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import Icon from "./Icon.vue";
 
 const emit = defineEmits(["navigate"]);
@@ -404,6 +406,7 @@ const hwMb = ref(true);
 const hwMem = ref(true);
 const hwGpu = ref(true);
 const hwDisk = ref(true);
+let diskDetailsUnlisten = null;
 
 const totalMemoryGB = computed(() => {
   if (!hardwareInfo.value?.memory_sticks) return 0;
@@ -440,20 +443,73 @@ function formatCache(kb) {
 async function refresh() {
   loading.value = true;
   try {
+    // 快速获取系统信息（磁盘只含容量，不含详情，秒级返回）
     systemInfo.value = await invoke("get_system_info");
   } catch (e) {
     console.error("Failed to get system info:", e);
   }
+  loading.value = false;
+
+  // 异步获取硬件详情（不阻塞 UI）
   try {
     hardwareInfo.value = await invoke("get_hardware_info");
   } catch (e) {
     console.error("Failed to get hardware info:", e);
     hardwareInfo.value = null;
   }
-  loading.value = false;
+
+  // 异步查询磁盘详情（型号、序列号、健康状态等）
+  const drives = systemInfo.value.disks?.map((d) => d.drive) || [];
+  if (drives.length > 0) {
+    invoke("query_disk_details", { drives }).catch((e) =>
+      console.log("Disk details query skipped:", e)
+    );
+  }
 }
 
-onMounted(refresh);
+// 监听磁盘详情更新事件
+async function setupDiskDetailsListener() {
+  try {
+    diskDetailsUnlisten = await listen("disk-details-update", (event) => {
+      const {
+        drive,
+        label,
+        file_system,
+        serial_number,
+        model,
+        interface_type,
+        is_ssd,
+        health_status,
+        partition_style,
+      } = event.payload;
+      // 更新对应磁盘的详情字段
+      if (systemInfo.value.disks) {
+        const disk = systemInfo.value.disks.find((d) => d.drive === drive);
+        if (disk) {
+          disk.label = label;
+          disk.file_system = file_system;
+          disk.serial_number = serial_number;
+          disk.model = model;
+          disk.interface_type = interface_type;
+          disk.is_ssd = is_ssd;
+          disk.health_status = health_status;
+          disk.partition_style = partition_style;
+        }
+      }
+    });
+  } catch (e) {
+    console.log("Disk details listener not available:", e);
+  }
+}
+
+onMounted(() => {
+  setupDiskDetailsListener();
+  refresh();
+});
+
+onUnmounted(() => {
+  if (diskDetailsUnlisten) diskDetailsUnlisten();
+});
 </script>
 
 <style scoped>
@@ -638,9 +694,26 @@ onMounted(refresh);
 }
 
 /* 磁盘详情块 */
+.disk-list {
+  max-height: 480px;
+  overflow-y: auto;
+}
+
 .disk-block {
   padding: 12px 0;
   border-top: 1px solid var(--border);
+}
+
+.tag-loading {
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  border-color: var(--border);
+  animation: tag-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes tag-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
 }
 
 .disk-block:first-child {

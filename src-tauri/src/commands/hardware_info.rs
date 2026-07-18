@@ -86,14 +86,17 @@ fn query_wmi_memory() -> Vec<MemoryStick> {
     let mut sticks = Vec::new();
 
     let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Get-CimInstance -ClassName Win32_PhysicalMemory | ForEach-Object {
     $typeCode = $_.SMBIOSMemoryType
     $typeName = switch ($typeCode) {
         20 {"DDR"}
         21 {"DDR2"}
+        22 {"DDR2 FB-DIMM"}
         24 {"DDR3"}
         26 {"DDR4"}
         34 {"DDR5"}
+        35 {"DDR5"}
         default {"Unknown($typeCode)"}
     }
     $formCode = $_.FormFactor
@@ -103,7 +106,10 @@ Get-CimInstance -ClassName Win32_PhysicalMemory | ForEach-Object {
         15 {"FB-DIMM"}
         default {"Unknown"}
     }
-    $line = "$($_.BankLabel)|$($_.DeviceLocator)|$($_.Manufacturer)|$($_.PartNumber)|$($_.SerialNumber)|$([math]::Round($_.Capacity / 1GB, 2))|$($_.Speed)|$typeName|$formName|$($_.ConfiguredClockSpeed)"
+    $mfg = $_.Manufacturer
+    $cleanMfg = $mfg -replace '^[0-9A-Fa-f]+$',''
+    if ($cleanMfg -eq '') { $mfg = 'Unknown' }
+    $line = "$($_.BankLabel)|$($_.DeviceLocator)|$mfg|$($_.PartNumber)|$($_.SerialNumber)|$([math]::Round($_.Capacity / 1GB, 2))|$($_.Speed)|$typeName|$formName|$($_.ConfiguredClockSpeed)"
     Write-Output $line
 }
 "#;
@@ -143,6 +149,7 @@ Get-CimInstance -ClassName Win32_PhysicalMemory | ForEach-Object {
 #[cfg(windows)]
 fn query_wmi_cpu() -> Option<CpuHardwareInfo> {
     let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $cpu = Get-CimInstance -ClassName Win32_Processor | Select-Object -First 1
 $l2 = ($cpu.L2CacheSizeKB)
 $l3 = ($cpu.L3CacheSizeKB)
@@ -183,6 +190,7 @@ Write-Output $line
 #[cfg(windows)]
 fn query_wmi_motherboard() -> Option<MotherboardInfo> {
     let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $board = Get-CimInstance -ClassName Win32_BaseBoard
 $bios = Get-CimInstance -ClassName Win32_BIOS
 $line = "$($board.Manufacturer)|$($board.Product)|$($board.Version)|$($board.SerialNumber)|$($bios.SMBIOSBIOSVersion)|$($bios.ReleaseDate.ToString('yyyy-MM-dd'))|$($bios.Manufacturer)"
@@ -220,6 +228,7 @@ fn query_wmi_gpu() -> Vec<GpuInfo> {
     let mut gpus = Vec::new();
 
     let ps_command = r#"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Get-CimInstance -ClassName Win32_VideoController | ForEach-Object {
     $ram = if ($_.AdapterRAM) { [math]::Round($_.AdapterRAM / 1GB, 2) } else { 0 }
     $drvDate = if ($_.DriverDate) { $_.DriverDate.ToString('yyyy-MM-dd') } else { 'Unknown' }
