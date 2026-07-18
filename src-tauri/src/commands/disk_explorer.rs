@@ -246,30 +246,29 @@ pub async fn calculate_dir_sizes(paths: Vec<String>, app: tauri::AppHandle) {
         timeout_clone.store(true, Ordering::Relaxed);
     });
 
-    // 并行计算每个目录大小，完成后立即推送事件
-    let results: Vec<(String, u64, u64, bool)> = paths
-        .par_iter()
-        .map(|path| {
+    // 用 spawn_blocking 运行 rayon 并行计算，避免阻塞 async 运行时
+    let app_clone = app.clone();
+    tokio::task::spawn_blocking(move || {
+        // 逐个目录计算，每算完一个立即推送（而非全部算完再推）
+        for path in &paths {
             let path_buf = PathBuf::from(path);
             let timeout_flag = timeout.clone();
             let (size, count, is_est) = walk_with_timeout(&path_buf, &timeout_flag);
-            (path.clone(), size, count, is_est)
-        })
-        .collect();
 
-    // 推送每个结果
-    for (path, size, count, is_estimated) in results {
-        let _ = app.emit(
-            "dir-size-update",
-            serde_json::json!({
-                "path": path,
-                "size_bytes": size,
-                "size_display": format_size(size),
-                "file_count": count,
-                "is_estimated": is_estimated,
-            }),
-        );
-    }
+            let _ = app_clone.emit(
+                "dir-size-update",
+                serde_json::json!({
+                    "path": path,
+                    "size_bytes": size,
+                    "size_display": format_size(size),
+                    "file_count": count,
+                    "is_estimated": is_est,
+                }),
+            );
+        }
+    })
+    .await
+    .ok();
 }
 
 // ========== 内部辅助函数 ==========

@@ -104,7 +104,6 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import Icon from "./components/Icon.vue";
 import Dashboard from "./components/Dashboard.vue";
 import DiskCleanup from "./components/DiskCleanup.vue";
@@ -140,7 +139,7 @@ const navGroups = [
   {
     label: "磁盘",
     items: [
-      { id: "disk", label: "大文件扫描", icon: "folder" },
+      { id: "disk", label: "磁盘扫描", icon: "folder" },
       { id: "defrag", label: "碎片整理", icon: "disc" },
     ],
   },
@@ -256,18 +255,32 @@ onMounted(() => {
 });
 
 // ===== 窗口控制 =====
-const appWindow = getCurrentWindow();
+// 动态导入避免浏览器预览环境报错
+let appWindow = null;
+async function getWindow() {
+  if (appWindow) return appWindow;
+  try {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    appWindow = getCurrentWindow();
+  } catch (e) {
+    console.log("Window API not available (browser mode)");
+  }
+  return appWindow;
+}
 
 async function minimizeWindow() {
-  await appWindow.minimize();
+  const w = await getWindow();
+  if (w) await w.minimize();
 }
 
 async function toggleMaximize() {
-  await appWindow.toggleMaximize();
+  const w = await getWindow();
+  if (w) await w.toggleMaximize();
 }
 
 async function closeWindow() {
-  await appWindow.close();
+  const w = await getWindow();
+  if (w) await w.close();
 }
 
 function handleNavigate(view) {

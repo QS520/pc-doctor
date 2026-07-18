@@ -230,103 +230,70 @@
 
         <!-- 右列：内存条 + 显卡 + 磁盘详情 -->
         <div class="col">
-          <!-- 磁盘详情卡 -->
+          <!-- 磁盘信息（简洁版：厂商/类型/容量） -->
           <div class="card" v-if="systemInfo.disks && systemInfo.disks.length">
             <div class="card-header" @click="hwDisk = !hwDisk" style="cursor:pointer;user-select:none">
-              <span class="card-title">磁盘详情 {{ systemInfo.disks.length > 1 ? `(${systemInfo.disks.length})` : '' }}</span>
+              <span class="card-title">磁盘</span>
               <Icon :name="hwDisk ? 'chevron-down' : 'chevron-right'" :size="14" :stroke-width="2" />
             </div>
-            <div class="card-body disk-list" v-if="hwDisk">
+            <div class="card-body" v-if="hwDisk">
               <div class="disk-block" v-for="(disk, idx) in systemInfo.disks" :key="idx">
                 <div class="disk-block-head">
                   <Icon name="disc" :size="12" />
                   <span class="disk-block-name">{{ disk.drive }}: 盘</span>
-                  <span class="tag tag-neutral" v-if="disk.is_ssd">SSD</span>
-                  <span class="tag tag-neutral" v-else-if="disk.model || disk.health_status">HDD</span>
+                  <span class="tag tag-neutral" v-if="disk.is_ssd">固态 SSD</span>
+                  <span class="tag tag-neutral" v-else-if="disk.model">机械 HDD</span>
                   <span class="tag tag-loading" v-else>加载中</span>
-                  <span class="tag" :class="disk.health_status === 'Healthy' ? 'tag-success' : 'tag-warning'" v-if="disk.health_status">
-                    {{ disk.health_status === 'Healthy' ? '健康' : disk.health_status }}
-                  </span>
-                </div>
-                <!-- 容量进度条 -->
-                <div class="disk-capacity">
-                  <div class="bar">
-                    <div class="bar-fill" :class="getBarClass(disk.usage_percent)" :style="{ width: disk.usage_percent + '%' }"></div>
-                  </div>
-                  <div class="disk-capacity-meta">
-                    <span class="mono">{{ disk.used_gb }} / {{ disk.total_gb }} GB</span>
-                    <span class="disk-usage-pct">{{ disk.usage_percent.toFixed(1) }}%</span>
-                  </div>
-                </div>
-                <div class="kv-row" v-if="disk.label && disk.label !== '-'">
-                  <span class="kv-label">卷标</span>
-                  <span class="kv-value">{{ disk.label }}</span>
-                </div>
-                <div class="kv-row" v-if="disk.file_system && disk.file_system !== '-'">
-                  <span class="kv-label">文件系统</span>
-                  <span class="kv-value mono">{{ disk.file_system }}</span>
                 </div>
                 <div class="kv-row" v-if="disk.model && disk.model !== '-'">
-                  <span class="kv-label">型号</span>
+                  <span class="kv-label">厂商/型号</span>
                   <span class="kv-value">{{ disk.model }}</span>
                 </div>
-                <div class="kv-row" v-if="disk.interface_type && disk.interface_type !== '-'">
-                  <span class="kv-label">接口</span>
-                  <span class="kv-value mono">{{ disk.interface_type }}</span>
-                </div>
-                <div class="kv-row" v-if="disk.partition_style && disk.partition_style !== '-'">
-                  <span class="kv-label">分区样式</span>
-                  <span class="kv-value mono">{{ disk.partition_style }}</span>
-                </div>
-                <div class="kv-row" v-if="disk.serial_number && disk.serial_number !== '-'">
-                  <span class="kv-label">序列号</span>
-                  <span class="kv-value mono">{{ disk.serial_number }}</span>
+                <div class="kv-row">
+                  <span class="kv-label">总容量</span>
+                  <span class="kv-value mono">{{ disk.total_gb }} GB</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- 内存条 -->
+          <!-- 内存条（相同规格合并显示） -->
           <div class="card" v-if="hardwareInfo && hardwareInfo.memory_sticks && hardwareInfo.memory_sticks.length">
             <div class="card-header" @click="hwMem = !hwMem" style="cursor:pointer;user-select:none">
-              <span class="card-title">内存条</span>
+              <span class="card-title">内存</span>
               <span class="tag tag-info">{{ hardwareInfo.memory_sticks.length }} 条 · {{ totalMemoryGB }} GB</span>
               <Icon :name="hwMem ? 'chevron-down' : 'chevron-right'" :size="14" :stroke-width="2" />
             </div>
             <div class="card-body" v-if="hwMem">
-              <div class="mem-stick" v-for="(stick, idx) in hardwareInfo.memory_sticks" :key="idx">
+              <div class="mem-stick" v-for="(stick, idx) in mergedMemorySticks" :key="idx">
                 <div class="mem-stick-head">
                   <Icon name="memory-stick" :size="12" />
-                  <span class="mem-stick-label">{{ stick.bank_label || stick.device_locator || `插槽 ${idx+1}` }}</span>
-                  <span class="tag tag-neutral" v-if="stick.memory_type">{{ stick.memory_type }}</span>
+                  <span class="mem-stick-label">{{ stick.memory_type || '内存' }}</span>
+                  <span class="tag tag-neutral" v-if="stick.count > 1">×{{ stick.count }}</span>
                 </div>
-                <div class="kv-row">
+                <div class="kv-row" v-if="stick.manufacturer && stick.manufacturer !== 'Unknown'">
                   <span class="kv-label">厂商</span>
-                  <span class="kv-value">{{ stick.manufacturer || '-' }}</span>
+                  <span class="kv-value">{{ stick.manufacturer }}</span>
                 </div>
                 <div class="kv-row">
-                  <span class="kv-label">容量</span>
+                  <span class="kv-label">单条容量</span>
                   <span class="kv-value mono">{{ stick.capacity_gb }} GB</span>
                 </div>
                 <div class="kv-row">
-                  <span class="kv-label">标称频率</span>
+                  <span class="kv-label">总容量</span>
+                  <span class="kv-value mono">{{ (stick.capacity_gb * stick.count).toFixed(2) }} GB</span>
+                </div>
+                <div class="kv-row">
+                  <span class="kv-label">频率</span>
                   <span class="kv-value mono">{{ stick.speed_mhz }} MHz</span>
                 </div>
-                <div class="kv-row" v-if="stick.configured_speed_mhz">
+                <div class="kv-row" v-if="stick.configured_speed_mhz && stick.configured_speed_mhz !== stick.speed_mhz">
                   <span class="kv-label">实际频率</span>
                   <span class="kv-value mono">{{ stick.configured_speed_mhz }} MHz</span>
-                </div>
-                <div class="kv-row" v-if="stick.form_factor">
-                  <span class="kv-label">规格</span>
-                  <span class="kv-value">{{ stick.form_factor }}</span>
                 </div>
                 <div class="kv-row" v-if="stick.part_number">
                   <span class="kv-label">型号</span>
                   <span class="kv-value mono">{{ stick.part_number }}</span>
-                </div>
-                <div class="kv-row" v-if="stick.serial_number">
-                  <span class="kv-label">序列号</span>
-                  <span class="kv-value mono">{{ stick.serial_number }}</span>
                 </div>
               </div>
             </div>
@@ -411,6 +378,28 @@ let diskDetailsUnlisten = null;
 const totalMemoryGB = computed(() => {
   if (!hardwareInfo.value?.memory_sticks) return 0;
   return hardwareInfo.value.memory_sticks.reduce((s, m) => s + (m.capacity_gb || 0), 0);
+});
+
+// 合并相同的内存条（按厂商+容量+频率+型号分组）
+const mergedMemorySticks = computed(() => {
+  if (!hardwareInfo.value?.memory_sticks) return [];
+  const groups = {};
+  for (const stick of hardwareInfo.value.memory_sticks) {
+    // 用关键字段作为分组键（忽略序列号和插槽位置）
+    const key = [
+      stick.manufacturer || "",
+      stick.capacity_gb || 0,
+      stick.speed_mhz || 0,
+      stick.memory_type || "",
+      stick.part_number || "",
+    ].join("|");
+    if (!groups[key]) {
+      groups[key] = { ...stick, count: 1 };
+    } else {
+      groups[key].count += 1;
+    }
+  }
+  return Object.values(groups);
 });
 
 function getBarClass(percent) {

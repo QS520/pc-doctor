@@ -421,41 +421,47 @@ foreach ($drv in $drives) {{
         drive_filter
     );
 
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-Command", &script])
-        .output();
+    // 用 spawn_blocking 运行 PowerShell，避免阻塞 async 运行时
+    let app_clone = app.clone();
+    tokio::task::spawn_blocking(move || {
+        let output = Command::new("powershell")
+            .args(["-NoProfile", "-Command", &script])
+            .output();
 
-    if let Ok(output) = output {
-        // 用 GBK 解码（Windows 中文系统默认代码页），回退 UTF-8
-        let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
-        for line in stdout.lines() {
-            let line = line.trim();
-            if line.is_empty() || !line.contains('|') {
-                continue;
-            }
-            let parts: Vec<&str> = line.splitn(9, '|').collect();
-            if parts.len() >= 9 {
-                let drive = parts[0].to_string();
-                let media_lower = parts[6].to_lowercase();
-                let is_ssd = media_lower.contains("ssd") || media_lower.contains("solid");
+        if let Ok(output) = output {
+            // 用 GBK 解码（Windows 中文系统默认代码页），回退 UTF-8
+            let (stdout, _, _) = encoding_rs::GBK.decode(&output.stdout);
+            for line in stdout.lines() {
+                let line = line.trim();
+                if line.is_empty() || !line.contains('|') {
+                    continue;
+                }
+                let parts: Vec<&str> = line.splitn(9, '|').collect();
+                if parts.len() >= 9 {
+                    let drive = parts[0].to_string();
+                    let media_lower = parts[6].to_lowercase();
+                    let is_ssd = media_lower.contains("ssd") || media_lower.contains("solid");
 
-                let _ = app.emit(
-                    "disk-details-update",
-                    serde_json::json!({
-                        "drive": drive,
-                        "label": parts[1],
-                        "file_system": parts[2],
-                        "serial_number": parts[3],
-                        "model": parts[4],
-                        "interface_type": parts[5],
-                        "is_ssd": is_ssd,
-                        "health_status": parts[7],
-                        "partition_style": parts[8],
-                    }),
-                );
+                    let _ = app_clone.emit(
+                        "disk-details-update",
+                        serde_json::json!({
+                            "drive": drive,
+                            "label": parts[1],
+                            "file_system": parts[2],
+                            "serial_number": parts[3],
+                            "model": parts[4],
+                            "interface_type": parts[5],
+                            "is_ssd": is_ssd,
+                            "health_status": parts[7],
+                            "partition_style": parts[8],
+                        }),
+                    );
+                }
             }
         }
-    }
+    })
+    .await
+    .ok();
 }
 
 #[cfg(not(windows))]
