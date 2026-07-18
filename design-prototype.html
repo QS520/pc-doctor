@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PC 急诊箱 - 系统总览 UI 原型</title>
+  <style>
+    :root {
+      --bg-base: #f3f5f8;
+      --bg-surface: #ffffff;
+      --bg-elevated: #f8fafc;
+      --bg-hover: #eef1f5;
+      --bg-input: #ffffff;
+
+      --text-primary: #0d1117;
+      --text-secondary: #424a57;
+      --text-muted: #6b7280;
+      --text-faint: #9ca3af;
+
+      --border: #e5e7eb;
+      --border-light: #d1d5db;
+      --border-focus: #9ca3af;
+
+      --accent: #0d9488;
+      --accent-hover: #0f766e;
+      --accent-dim: rgba(13, 148, 136, 0.1);
+      --accent-glow: rgba(13, 148, 136, 0.2);
+
+      --success: #10b981;
+      --success-dim: rgba(16, 185, 129, 0.1);
+      --warning: #f59e0b;
+      --warning-dim: rgba(245, 158, 11, 0.1);
+      --danger: #ef4444;
+      --danger-dim: rgba(239, 68, 68, 0.1);
+      --info: #3b82f6;
+      --info-dim: rgba(59, 130, 246, 0.1);
+
+      --radius: 10px;
+      --radius-sm: 6px;
+      --radius-lg: 14px;
+
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.1);
+
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Code", "Consolas", monospace;
+    }
+
+    html[data-theme="dark"] {
+      --bg-base: #080b11;
+      --bg-surface: #0d1117;
+      --bg-elevated: #131a23;
+      --bg-hover: #18202b;
+      --bg-input: #0a0e14;
+
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted: #5c6573;
+      --text-faint: #3d4452;
+
+      --border: #1c232e;
+      --border-light: #27313e;
+      --border-focus: #384354;
+
+      --accent: #2dd4bf;
+      --accent-hover: #14b8a6;
+      --accent-dim: rgba(45, 212, 191, 0.12);
+      --accent-glow: rgba(45, 212, 191, 0.25);
+
+      --success: #3fb950;
+      --success-dim: rgba(63, 185, 80, 0.12);
+      --warning: #d29922;
+      --warning-dim: rgba(210, 153, 34, 0.12);
+      --danger: #f85149;
+      --danger-dim: rgba(248, 81, 73, 0.12);
+      --info: #58a6ff;
+      --info-dim: rgba(88, 166, 255, 0.12);
+
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+      --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.45);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-size: 13px;
+      line-height: 1.55;
+      height: 100vh;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* ===== 标题栏 ===== */
+    .titlebar {
+      display: flex;
+      align-items: center;
+      height: 38px;
+      flex-shrink: 0;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      user-select: none;
+    }
+
+    .titlebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 14px;
+      width: 220px;
+      height: 100%;
+      flex-shrink: 0;
+    }
+
+    .brand-mark {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #04201d;
+    }
+
+    .titlebar-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+
+    .titlebar-drag { flex: 1; height: 100%; }
+
+    .titlebar-controls {
+      display: flex;
+      align-items: center;
+      height: 100%;
+    }
+
+    .win-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 100%;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: background 0.12s ease, color 0.12s ease;
+    }
+
+    .win-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .win-close:hover { background: #e81123; color: #ffffff; }
+
+    /* ===== 主体 ===== */
+    .app-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ===== 侧边栏 ===== */
+    .sidebar {
+      width: 220px;
+      flex-shrink: 0;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 10px 0;
+      overflow-y: auto;
+    }
+
+    .nav-section { padding: 4px 10px; }
+
+    .nav-section-label {
+      font-size: 9.5px;
+      font-weight: 600;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 8px 10px 4px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 10px;
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 12.5px;
+      font-weight: 500;
+      text-align: left;
+      width: 100%;
+      margin-bottom: 1px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .nav-item.active { background: var(--accent-dim); color: var(--accent); }
+
+    .nav-icon { flex-shrink: 0; }
+
+    .sidebar-foot {
+      margin-top: auto;
+      padding: 12px 14px 6px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .theme-switcher {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    .theme-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .theme-row-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      width: 28px;
+      flex-shrink: 0;
+      text-align: center;
+    }
+
+    .theme-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 5px;
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .theme-btn:hover { background: var(--bg-hover); color: var(--text-secondary); }
+    .theme-btn.active { background: var(--accent-dim); color: var(--accent); }
+
+    .accent-btn {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .accent-btn:hover { transform: scale(1.15); }
+    .accent-btn.active { border-color: var(--text-primary); box-shadow: 0 0 0 2px var(--bg-surface); }
+
+    .perm-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10.5px;
+      color: var(--text-secondary);
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 0 3px var(--success-dim);
+    }
+
+    .port-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 10px;
+      font-family: var(--font-mono);
+    }
+
+    /* ===== 内容区 ===== */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 28px;
+      background: var(--bg-base);
+    }
+
+    .dashboard { max-width: 1280px; margin: 0 auto; }
+
+    /* ===== 头部 ===== */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 22px;
+    }
+
+    .page-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 4px 0;
+      letter-spacing: -0.02em;
+    }
+
+    .page-subtitle {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 12.5px;
+      font-weight: 500;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-ghost {
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+      border-color: var(--border);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-ghost:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: var(--border-light);
+    }
+
+    /* ===== 指标卡片（克制专业风） ===== */
+    .gauge-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .gauge-card {
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .gauge-card:hover {
+      border-color: var(--border-light);
+      box-shadow: var(--shadow);
+    }
+
+    .gauge-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .gauge-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .gauge-ic {
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .gauge-ic.cpu      { background: var(--accent-dim);  color: var(--accent); }
+    .gauge-ic.mem      { background: var(--warning-dim); color: var(--warning); }
+    .gauge-ic.disk     { background: var(--success-dim); color: var(--success); }
+    .gauge-ic.battery  { background: var(--info-dim);    color: var(--info); }
+
+    .gauge-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: 0.01em;
+    }
+
+    .gauge-trend {
+      font-size: 10.5px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .trend-ok      { background: var(--success-dim); color: var(--success); }
+    .trend-warn    { background: var(--warning-dim); color: var(--warning); }
+    .trend-bad     { background: var(--danger-dim);  color: var(--danger); }
+    .trend-neutral { background: var(--bg-elevated); color: var(--text-muted); }
+
+    .gauge-body {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .gauge-ring {
+      width: 84px;
+      height: 84px;
+      flex-shrink: 0;
+    }
+
+    .gauge-ring-bg {
+      fill: none;
+      stroke: var(--bg-elevated);
+      stroke-width: 8;
+    }
+
+    .gauge-ring-fill {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 8;
+      stroke-linecap: round;
+      transform: rotate(-90deg);
+      transform-origin: center;
+      transition: stroke-dashoffset 0.8s ease, stroke 0.3s ease;
+    }
+
+    .gauge-ring-fill.is-accent { stroke: var(--accent); }
+    .gauge-ring-fill.is-warn   { stroke: var(--warning); }
+    .gauge-ring-fill.is-bad    { stroke: var(--danger); }
+    .gauge-ring-fill.is-info   { stroke: var(--info); }
+
+    .gauge-ring-text {
+      fill: var(--text-primary);
+      font-size: 20px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+
+    .gauge-ring-unit {
+      font-size: 11px;
+      font-weight: 500;
+      fill: var(--text-muted);
+    }
+
+    .gauge-stats {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .gauge-stat-value {
+      font-size: 18px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--text-primary);
+    }
+
+    .gauge-stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .gauge-foot {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .gauge-meta {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* ===== 健康评分横幅 ===== */
+    .health-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 18px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      margin-bottom: 18px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .health-main {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .health-score {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: conic-gradient(var(--success) 0% 92%, var(--border) 92% 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .health-score::before {
+      content: '';
+      position: absolute;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: var(--bg-surface);
+    }
+
+    .health-score span {
+      position: relative;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--success);
+    }
+
+    .health-text h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 2px;
+    }
+
+    .health-text p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .health-tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .health-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .health-tag.success { background: var(--success-dim); color: var(--success); }
+    .health-tag.warning { background: var(--warning-dim); color: var(--warning); }
+
+    /* ===== 主内容网格 ===== */
+    .main-content {
+      display: grid;
+      grid-template-columns: 1fr 1.25fr;
+      gap: 18px;
+    }
+
+    .col-left, .col-right {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .card:hover {
+      box-shadow: var(--shadow);
+      border-color: var(--border-light);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      flex: 1;
+    }
+
+    .card-tag {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .card-body { padding: 18px; }
+
+    /* ===== 系统信息 ===== */
+    .kv-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px 24px;
+    }
+
+    .kv-item { display: flex; flex-direction: column; gap: 3px; }
+
+    .kv-label {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    .kv-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .kv-value.mono { font-family: var(--font-mono); font-weight: 500; }
+
+    /* ===== 网络信息 ===== */
+    .network-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 0;
+      border-bottom: 1px dashed var(--border);
+    }
+
+    .network-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .network-row:first-child { padding-top: 0; }
+
+    .network-label {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    .network-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+    }
+
+    /* ===== 快捷操作 ===== */
+    .action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .action-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .action-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-light);
+      color: var(--text-primary);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .action-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .action-cleanup .action-icon { background: var(--info-dim); color: var(--info); }
+    .action-boost .action-icon { background: var(--success-dim); color: var(--success); }
+    .action-startup .action-icon { background: var(--warning-dim); color: var(--warning); }
+    .action-repair .action-icon { background: var(--accent-dim); color: var(--accent); }
+
+    /* ===== 硬件列表 ===== */
+    .hw-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .hw-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background 0.15s ease;
+      border: 1px solid transparent;
+    }
+
+    .hw-item:hover { background: var(--bg-elevated); border-color: var(--border); }
+
+    .hw-item-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .hw-cpu .hw-item-icon { background: var(--info-dim); color: var(--info); }
+    .hw-mb .hw-item-icon { background: var(--accent-dim); color: var(--accent); }
+    .hw-disk .hw-item-icon { background: var(--success-dim); color: var(--success); }
+    .hw-mem .hw-item-icon { background: var(--warning-dim); color: var(--warning); }
+    .hw-gpu .hw-item-icon { background: var(--danger-dim); color: var(--danger); }
+
+    .hw-item-info { flex: 1; min-width: 0; }
+
+    .hw-item-name {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hw-item-tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .hw-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-weight: 500;
+      white-space: nowrap;
+      border: 1px solid var(--border);
+    }
+
+    .hw-tag-info { background: var(--info-dim); color: var(--info); border-color: transparent; }
+    .hw-tag-success { background: var(--success-dim); color: var(--success); border-color: transparent; }
+    .hw-tag-warning { background: var(--warning-dim); color: var(--warning); border-color: transparent; }
+
+    .hw-item-arrow {
+      color: var(--text-muted);
+      flex-shrink: 0;
+      transition: transform 0.2s ease;
+    }
+
+    .hw-item.expanded .hw-item-arrow { transform: rotate(90deg); }
+
+    .hw-detail {
+      padding: 10px 14px 14px 14px;
+      animation: slideDown 0.2s ease;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .hw-detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 18px;
+      padding: 14px;
+      background: var(--bg-elevated);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    .hw-detail-item { display: flex; flex-direction: column; gap: 3px; }
+
+    .hwd-label {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .hwd-value {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .hwd-value.mono { font-family: var(--font-mono); font-weight: 500; }
+
+    /* ===== 标签页提示 ===== */
+    .prototype-note {
+      position: fixed;
+      bottom: 18px;
+      right: 18px;
+      padding: 10px 14px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      font-size: 11.5px;
+      color: var(--text-muted);
+      max-width: 260px;
+      line-height: 1.5;
+    }
+
+    .prototype-note strong {
+      color: var(--text-primary);
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    /* ===== 响应式 ===== */
+    @media (max-width: 1200px) {
+      .gauge-grid { grid-template-columns: repeat(2, 1fr); }
+      .main-content { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 760px) {
+      .sidebar { display: none; }
+      .gauge-grid { grid-template-columns: 1fr; }
+      .action-grid { grid-template-columns: 1fr; }
+      .kv-grid { grid-template-columns: 1fr; }
+      .hw-detail-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- 标题栏 -->
+    <div class="titlebar">
+      <div class="titlebar-brand">
+        <div class="brand-mark">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v8" />
+            <path d="m4.93 10.93 1.41 1.41" />
+            <path d="M2 18h2" />
+            <path d="M20 18h2" />
+            <path d="m19.07 10.93-1.41 1.41" />
+            <path d="M22 22H2" />
+            <path d="m8 22 4-10 4 10" />
+          </svg>
+        </div>
+        <span class="titlebar-name">PC 急诊箱</span>
+      </div>
+      <div class="titlebar-drag"></div>
+      <div class="titlebar-controls">
+        <button class="win-btn" title="最小化">
+          <svg width="11" height="11" viewBox="0 0 12 12"><rect x="1" y="5.5" width="10" height="1" fill="currentColor"/></svg>
+        </button>
+        <button class="win-btn" title="最大化/还原">
+          <svg width="11" height="11" viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+        </button>
+        <button class="win-btn win-close" title="关闭">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M1 1L11 11M11 1L1 11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="app-body">
+      <!-- 侧边栏 -->
+      <aside class="sidebar">
+        <div class="nav-section">
+          <div class="nav-section-label">概览</div>
+          <button class="nav-item active">
+            <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/>
+              <rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>
+            </svg>
+            <span class="nav-label">系统总览</span>
+          </button>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-label">清理与加速</div>
+          <button class="nav-item">
+            <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m19 9-5 5-5-5"/></svg>
+            <span class="nav-label">C盘清理</span>
+          </button>
+          <button class="nav-item">
+            <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="m19 7-2 2"/><path d="m5 7 2 2"/><path d="m4.93 10.93 1.41 1.41"/><path d="M12 12l4-4"/><circle cx="12" cy="12" r="10"/></svg>
+            <span class="nav-label">开机加速</span>
+          </button>
+          <button class="nav-item">
+            <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <span class="nav-label">一键加速</span>
+          </button>
+          <button class="nav-item">
+            <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>
+            <span class="nav-label">进程管理</span>
+          </button>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-label">磁盘</div>
+          <button class="nav-item">
+            <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+            <span class="nav-label">磁盘扫描</span>
+          </button>
+          <button class="nav-item">
+            <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2"/></svg>
+            <span class="nav-label">碎片整理</span>
+          </button>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-label">诊断与修复</div>
+          <button class="nav-item">
+            <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+            <span class="nav-label">硬件故障诊断</span>
+          </button>
+          <button class="nav-item">
+            <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg>
+            <span class="nav-label">驱动冲突</span>
+          </button>
+          <button class="nav-item">
+            <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>
+            <span class="nav-label">系统损坏分析</span>
+          </button>
+          <button class="nav-item">
+            <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="m19 7-2 2"/><path d="m5 7 2 2"/><path d="M12 16a6 6 0 0 0 3.5-10.93C14.68 3.77 13.14 3 11.5 3h1a6.5 6.5 0 0 0-6.5 6.5c0 2.3 1.5 4.5 3.5 5.5"/><path d="M12 16v5"/><path d="M9 21h6"/></svg>
+            <span class="nav-label">蓝屏诊断</span>
+          </button>
+          <button class="nav-item">
+            <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+            <span class="nav-label">驱动检查</span>
+          </button>
+          <button class="nav-item">
+            <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" x2="22" y1="12" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <span class="nav-label">网络诊断</span>
+          </button>
+          <button class="nav-item">
+            <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.39a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+            <span class="nav-label">服务管理</span>
+          </button>
+          <button class="nav-item">
+            <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="10" x="4" y="6" rx="2"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+            <span class="nav-label">电源管理</span>
+          </button>
+          <button class="nav-item">
+            <svg class="nav-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            <span class="nav-label">系统修复</span>
+          </button>
+        </div>
+
+        <div class="sidebar-foot">
+          <div class="theme-switcher">
+            <div class="theme-row">
+              <span class="theme-row-label">明暗</span>
+              <button class="theme-btn" id="btnDark" title="深色主题" onclick="setTheme('dark')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+              </button>
+              <button class="theme-btn active" id="btnLight" title="浅色主题" onclick="setTheme('light')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+              </button>
+            </div>
+            <div class="theme-row">
+              <span class="theme-row-label">配色</span>
+              <button class="accent-btn active" style="background:#0d9488" onclick="setAccent('#0d9488')" title="青色"></button>
+              <button class="accent-btn" style="background:#3b82f6" onclick="setAccent('#3b82f6')" title="蓝色"></button>
+              <button class="accent-btn" style="background:#8b5cf6" onclick="setAccent('#8b5cf6')" title="紫色"></button>
+              <button class="accent-btn" style="background:#22c55e" onclick="setAccent('#22c55e')" title="绿色"></button>
+              <button class="accent-btn" style="background:#f97316" onclick="setAccent('#f97316')" title="橙色"></button>
+            </div>
+          </div>
+
+          <div class="perm-status">
+            <span class="dot"></span>
+            <span>管理员权限</span>
+          </div>
+          <div class="port-tag">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span>USB 便携</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- 主内容 -->
+      <main class="content">
+        <div class="dashboard">
+          <div class="header">
+            <div>
+              <h1 class="page-title">系统总览</h1>
+              <p class="page-subtitle">实时监测系统运行状态与硬件信息</p>
+            </div>
+            <button class="btn btn-ghost">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+              刷新
+            </button>
+          </div>
+
+          <!-- 指标卡片 -->
+          <div class="gauge-grid">
+            <div class="gauge-card">
+              <div class="gauge-head">
+                <div class="gauge-title">
+                  <div class="gauge-ic cpu">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>
+                  </div>
+                  <span class="gauge-label">CPU 负载</span>
+                </div>
+                <span class="gauge-trend trend-ok">正常</span>
+              </div>
+              <div class="gauge-body">
+                <svg class="gauge-ring" viewBox="0 0 120 120">
+                  <circle class="gauge-ring-bg" cx="60" cy="60" r="50" />
+                  <circle class="gauge-ring-fill is-accent" cx="60" cy="60" r="50" stroke-dasharray="314.2" stroke-dashoffset="185.8" />
+                  <text class="gauge-ring-text" x="60" y="62" text-anchor="middle">41<tspan class="gauge-ring-unit" x="74" y="62">%</tspan></text>
+                </svg>
+                <div class="gauge-stats">
+                  <span class="gauge-stat-value">16 核</span>
+                  <span class="gauge-stat-label">2.51 GHz</span>
+                </div>
+              </div>
+              <div class="gauge-foot">
+                <span class="gauge-meta">AMD Ryzen 7 H 255</span>
+              </div>
+            </div>
+
+            <div class="gauge-card">
+              <div class="gauge-head">
+                <div class="gauge-title">
+                  <div class="gauge-ic mem">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.5.5v17a.5.5 0 0 0 .5.5H17a1 1 0 0 0 1-1v-2"/><path d="M14 10V2H7.5a.5.5 0 0 0-.5.5v17a.5.5 0 0 0 .5.5H17a1 1 0 0 0 1-1v-2"/><path d="M2 12h4"/><path d="M22 12h-4"/></svg>
+                  </div>
+                  <span class="gauge-label">内存占用</span>
+                </div>
+                <span class="gauge-trend trend-warn">偏高</span>
+              </div>
+              <div class="gauge-body">
+                <svg class="gauge-ring" viewBox="0 0 120 120">
+                  <circle class="gauge-ring-bg" cx="60" cy="60" r="50" />
+                  <circle class="gauge-ring-fill is-warn" cx="60" cy="60" r="50" stroke-dasharray="314.2" stroke-dashoffset="33.6" />
+                  <text class="gauge-ring-text" x="60" y="62" text-anchor="middle">89.5<tspan class="gauge-ring-unit" x="80" y="62">%</tspan></text>
+                </svg>
+                <div class="gauge-stats">
+                  <span class="gauge-stat-value">25.18 GB</span>
+                  <span class="gauge-stat-label">已用 / 31.27 GB</span>
+                </div>
+              </div>
+              <div class="gauge-foot">
+                <span class="gauge-meta">DDR5 7500 MHz</span>
+              </div>
+            </div>
+
+            <div class="gauge-card">
+              <div class="gauge-head">
+                <div class="gauge-title">
+                  <div class="gauge-ic disk">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="10" ry="5"/><path d="M12 12v.01"/><path d="M2 12h20"/></svg>
+                  </div>
+                  <span class="gauge-label">磁盘使用</span>
+                </div>
+                <span class="gauge-trend trend-ok">良好</span>
+              </div>
+              <div class="gauge-body">
+                <svg class="gauge-ring" viewBox="0 0 120 120">
+                  <circle class="gauge-ring-bg" cx="60" cy="60" r="50" />
+                  <circle class="gauge-ring-fill is-accent" cx="60" cy="60" r="50" stroke-dasharray="314.2" stroke-dashoffset="229.4" />
+                  <text class="gauge-ring-text" x="60" y="62" text-anchor="middle">27<tspan class="gauge-ring-unit" x="74" y="62">%</tspan></text>
+                </svg>
+                <div class="gauge-stats">
+                  <span class="gauge-stat-value">954 GB</span>
+                  <span class="gauge-stat-label">1 块硬盘 · NVMe</span>
+                </div>
+              </div>
+              <div class="gauge-foot">
+                <span class="gauge-meta">YMTC YMSS2ED08D28MC</span>
+              </div>
+            </div>
+
+            <div class="gauge-card">
+              <div class="gauge-head">
+                <div class="gauge-title">
+                  <div class="gauge-ic battery">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="10" x="2" y="7" rx="2" ry="2"/><line x1="22" x2="22" y1="11" y2="13"/><rect x="4" y="9" width="10" height="6" rx="1" fill="currentColor"/></svg>
+                  </div>
+                  <span class="gauge-label">电池</span>
+                </div>
+                <span class="gauge-trend trend-neutral">放电中</span>
+              </div>
+              <div class="gauge-body">
+                <svg class="gauge-ring" viewBox="0 0 120 120">
+                  <circle class="gauge-ring-bg" cx="60" cy="60" r="50" />
+                  <circle class="gauge-ring-fill is-info" cx="60" cy="60" r="50" stroke-dasharray="314.2" stroke-dashoffset="213.7" />
+                  <text class="gauge-ring-text" x="60" y="62" text-anchor="middle">32<tspan class="gauge-ring-unit" x="74" y="62">%</tspan></text>
+                </svg>
+                <div class="gauge-stats">
+                  <span class="gauge-stat-value">1h 20m</span>
+                  <span class="gauge-stat-label">剩余使用时间</span>
+                </div>
+              </div>
+              <div class="gauge-foot">
+                <span class="gauge-meta">建议连接电源</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 健康评分 -->
+          <div class="health-banner">
+            <div class="health-main">
+              <div class="health-score"><span>92</span></div>
+              <div class="health-text">
+                <h3>系统状态良好</h3>
+                <p>已运行 39 天 19 小时 · 上次体检 2 天前</p>
+              </div>
+            </div>
+            <div class="health-tags">
+              <span class="health-tag success">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                硬件正常
+              </span>
+              <span class="health-tag success">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                驱动最新
+              </span>
+              <span class="health-tag warning">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                内存占用偏高
+              </span>
+            </div>
+          </div>
+
+          <!-- 主内容两列 -->
+          <div class="main-content">
+            <!-- 左列 -->
+            <div class="col-left">
+              <div class="card">
+                <div class="card-header">
+                  <span class="card-title">系统信息</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+                </div>
+                <div class="card-body">
+                  <div class="kv-grid">
+                    <div class="kv-item">
+                      <span class="kv-label">操作系统</span>
+                      <span class="kv-value">Windows 11 Home China</span>
+                    </div>
+                    <div class="kv-item">
+                      <span class="kv-label">主机名</span>
+                      <span class="kv-value mono">SJZX_Q5</span>
+                    </div>
+                    <div class="kv-item">
+                      <span class="kv-label">开机时间</span>
+                      <span class="kv-value mono">2026-06-08 19:37:51</span>
+                    </div>
+                    <div class="kv-item">
+                      <span class="kv-label">已运行</span>
+                      <span class="kv-value">39 天 19 小时</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <span class="card-title">网络信息</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M2 12.83a22 22 0 0 0 20 0"/><path d="M5 16.22a15 15 0 0 1 14 0"/><path d="M8.5 19.14a9 9 0 0 1 7 0"/></svg>
+                </div>
+                <div class="card-body">
+                  <div class="network-row">
+                    <span class="network-label">IP 地址</span>
+                    <span class="network-value">192.168.20.82</span>
+                  </div>
+                  <div class="network-row">
+                    <span class="network-label">MAC 地址</span>
+                    <span class="network-value">14-B5-CD-B8-5F-75</span>
+                  </div>
+                  <div class="network-row">
+                    <span class="network-label">适配器</span>
+                    <span class="network-value">WLAN</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <span class="card-title">快捷操作</span>
+                </div>
+                <div class="card-body">
+                  <div class="action-grid">
+                    <button class="action-btn action-cleanup">
+                      <div class="action-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                      </div>
+                      <span>清理垃圾</span>
+                    </button>
+                    <button class="action-btn action-boost">
+                      <div class="action-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                      </div>
+                      <span>一键加速</span>
+                    </button>
+                    <button class="action-btn action-startup">
+                      <div class="action-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="m19 7-2 2"/><path d="m5 7 2 2"/><path d="M12 16a6 6 0 0 0 3.5-10.93C14.68 3.77 13.14 3 11.5 3h1a6.5 6.5 0 0 0-6.5 6.5c0 2.3 1.5 4.5 3.5 5.5"/><path d="M12 16v5"/><path d="M9 21h6"/></svg>
+                      </div>
+                      <span>开机加速</span>
+                    </button>
+                    <button class="action-btn action-repair">
+                      <div class="action-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                      </div>
+                      <span>系统修复</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 右列 -->
+            <div class="col-right">
+              <div class="card">
+                <div class="card-header">
+                  <span class="card-title">硬件概览</span>
+                  <span class="card-tag">5 项</span>
+                </div>
+                <div class="card-body">
+                  <div class="hw-list">
+                    <div class="hw-item hw-cpu" onclick="toggleDetail(this)">
+                      <div class="hw-item-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>
+                      </div>
+                      <div class="hw-item-info">
+                        <div class="hw-item-name">AMD Ryzen 7 H 255 w/ Radeon 780M Graphics</div>
+                        <div class="hw-item-tags">
+                          <span class="hw-tag hw-tag-info">8 核 / 16 线程</span>
+                          <span class="hw-tag">3801 MHz</span>
+                        </div>
+                      </div>
+                      <svg class="hw-item-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </div>
+                    <div class="hw-detail" style="display:none">
+                      <div class="hw-detail-grid">
+                        <div class="hw-detail-item"><span class="hwd-label">厂商</span><span class="hwd-value">AuthenticAMD</span></div>
+                        <div class="hw-detail-item"><span class="hwd-label">插槽</span><span class="hwd-value mono">-</span></div>
+                        <div class="hw-detail-item"><span class="hwd-label">L2 缓存</span><span class="hwd-value mono">8 MB</span></div>
+                        <div class="hw-detail-item"><span class="hwd-label">L3 缓存</span><span class="hwd-value mono">16 MB</span></div>
+                      </div>
+                    </div>
+
+                    <div class="hw-item hw-mb" onclick="toggleDetail(this)">
+                      <div class="hw-item-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+                      </div>
+                      <div class="hw-item-info">
+                        <div class="hw-item-name">LNVNB161216</div>
+                        <div class="hw-item-tags">
+                          <span class="hw-tag">LENOVO</span>
+                          <span class="hw-tag">BIOS TDCN19WW</span>
+                        </div>
+                      </div>
+                      <svg class="hw-item-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </div>
+                    <div class="hw-detail" style="display:none">
+                      <div class="hw-detail-grid">
+                        <div class="hw-detail-item"><span class="hwd-label">版本</span><span class="hwd-value mono">SDK0T76463WIN</span></div>
+                        <div class="hw-detail-item"><span class="hwd-label">序列号</span><span class="hwd-value mono">PF2Z4DT2</span></div>
+                        <div class="hw-detail-item"><span class="hwd-label">BIOS 日期</span><span class="hwd-value mono">2025/04/15</span></div>
+                        <div class="hw-detail-item"><span class="hwd-label">BIOS 厂商</span><span class="hwd-value">LENOVO</span></div>
+                      </div>
+                    </div>
+
+                    <div class="hw-item hw-disk" onclick="toggleDetail(this)">
+                      <div class="hw-item-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="10" ry="5"/><path d="M12 12v.01"/><path d="M2 12h20"/></svg>
+                      </div>
+                      <div class="hw-item-info">
+                        <div class="hw-item-name">YMTC YMSS2ED08D28MC</div>
+                        <div class="hw-item-tags">
+                          <span class="hw-tag hw-tag-success">SSD 固态</span>
+                          <span class="hw-tag">954 GB</span>
+                          <span class="hw-tag">NVMe</span>
+                        </div>
+                      </div>
+                      <svg class="hw-item-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </div>
+                    <div class="hw-detail" style="display:none">
+                      <div class="hw-detail-grid">
+                        <div class="hw-detail-item"><span class="hwd-label">容量</span><span class="hwd-value mono">953.9 GB</span></div>
+                        <div class="hw-detail-item"><span class="hwd-label">接口</span><span class="hwd-value mono">NVMe</span></div>
+                        <div class="hw-detail-item"><span class="hwd-label">健康状态</span><span class="hwd-value text-success">Healthy</span></div>
+                        <div class="hw-detail-item"><span class="hwd-label">类型</span><span class="hwd-value">固态硬盘</span></div>
+                      </div>
+                    </div>
+
+                    <div class="hw-item hw-mem" onclick="toggleDetail(this)">
+                      <div class="hw-item-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.5.5v17a.5.5 0 0 0 .5.5H17a1 1 0 0 0 1-1v-2"/><path d="M14 10V2H7.5a.5.5 0 0 0-.5.5v17a.5.5 0 0 0 .5.5H17a1 1 0 0 0 1-1v-2"/><path d="M2 12h4"/><path d="M22 12h-4"/></svg>
+                      </div>
+                      <div class="hw-item-info">
+                        <div class="hw-item-name">DDR5 内存</div>
+                        <div class="hw-item-tags">
+                          <span class="hw-tag hw-tag-warning">4 条 · 32 GB</span>
+                          <span class="hw-tag">7500 MHz</span>
+                        </div>
+                      </div>
+                      <svg class="hw-item-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </div>
+                    <div class="hw-detail" style="display:none">
+                      <div class="hw-detail-grid">
+                        <div class="hw-detail-item"><span class="hwd-label">单条容量</span><span class="hwd-value mono">8 GB</span></div>
+                        <div class="hw-detail-item"><span class="hwd-label">总容量</span><span class="hwd-value mono">32 GB</span></div>
+                        <div class="hw-detail-item"><span class="hwd-label">频率</span><span class="hwd-value mono">7500 MHz</span></div>
+                        <div class="hw-detail-item"><span class="hwd-label">厂商</span><span class="hwd-value">Hynix</span></div>
+                      </div>
+                    </div>
+
+                    <div class="hw-item hw-gpu" onclick="toggleDetail(this)">
+                      <div class="hw-item-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+                      </div>
+                      <div class="hw-item-info">
+                        <div class="hw-item-name">AMD Radeon 780M Graphics</div>
+                        <div class="hw-item-tags">
+                          <span class="hw-tag hw-tag-info">1 张</span>
+                          <span class="hw-tag">0.5 GB</span>
+                        </div>
+                      </div>
+                      <svg class="hw-item-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </div>
+                    <div class="hw-detail" style="display:none">
+                      <div class="hw-detail-grid">
+                        <div class="hw-detail-item"><span class="hwd-label">厂商</span><span class="hwd-value">AMD</span></div>
+                        <div class="hw-detail-item"><span class="hwd-label">显存</span><span class="hwd-value mono">0.5 GB</span></div>
+                        <div class="hw-detail-item"><span class="hwd-label">驱动版本</span><span class="hwd-value mono">31.0.14000.0</span></div>
+                        <div class="hw-detail-item"><span class="hwd-label">驱动日期</span><span class="hwd-value mono">2026/05/20</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="prototype-note">
+    <strong>UI 设计原型</strong>
+    左侧可切换明暗主题与强调色；点击硬件列表项可展开/收起详情。此原型用于视觉审核，不连接真实系统数据。
+  </div>
+
+  <script>
+    function setTheme(mode) {
+      const html = document.documentElement;
+      if (mode === 'light') {
+        html.setAttribute('data-theme', 'light');
+        document.getElementById('btnLight').classList.add('active');
+        document.getElementById('btnDark').classList.remove('active');
+      } else {
+        html.removeAttribute('data-theme');
+        document.getElementById('btnDark').classList.add('active');
+        document.getElementById('btnLight').classList.remove('active');
+      }
+    }
+
+    function setAccent(color) {
+      const root = document.documentElement;
+      root.style.setProperty('--accent', color);
+      const dim = color + '1a';
+      root.style.setProperty('--accent-dim', dim);
+      document.querySelectorAll('.accent-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+    }
+
+    function toggleDetail(item) {
+      const detail = item.nextElementSibling;
+      if (!detail || !detail.classList.contains('hw-detail')) return;
+      const isHidden = detail.style.display === 'none';
+      detail.style.display = isHidden ? 'block' : 'none';
+      item.classList.toggle('expanded', isHidden);
+    }
+  </script>
+</body>
+</html>
